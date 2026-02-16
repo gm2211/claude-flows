@@ -110,7 +110,7 @@ Do this immediately after each merge -- don't let worktrees or tickets accumulat
 
 `bd` is a git-backed issue tracker at `~/.local/bin/bd`. Run `bd --help` for full command reference.
 
-**When to use:** Any work involving multiple steps. Run `bd init` once per repo, then `bd create` per task. Always `bd list` before creating to avoid duplicates.
+**When to use:** Any work involving multiple steps. Run `bd init` once per repo, then `git config beads.role coordinator` to set your role, then `bd create` per task. Always `bd list` before creating to avoid duplicates.
 
 **Interpreting the user:** "bd" or "beads" = use this tool.
 
@@ -140,3 +140,4 @@ The dashboard includes a deploy watch pane that monitors deployment status via p
 
 - NEVER suggest renaming sessions or mention `/rename`.
 - Prefer editing existing files over creating new ones.
+- Always use the `AskUserQuestion` tool when asking the user questions. Never ask questions as plain text — the tool ensures the user sees structured options and can respond efficiently.
