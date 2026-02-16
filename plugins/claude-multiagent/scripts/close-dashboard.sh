@@ -37,14 +37,43 @@ fi
 log "Project directory: $PROJECT_DIR"
 
 # ---------------------------------------------------------------------------
+# Kill a process and all its descendants (children, grandchildren, etc.).
+# Uses SIGTERM so watch scripts can run their cleanup traps.
+# ---------------------------------------------------------------------------
+kill_tree() {
+  local pid="$1"
+  local label="$2"
+
+  # First, collect child PIDs before killing the parent (once the parent
+  # dies, child reparenting may make them harder to associate).
+  local children
+  children=$(pgrep -P "$pid" 2>/dev/null || true)
+
+  log "Sending SIGTERM to PID $pid ($label)"
+  kill "$pid" 2>/dev/null || true
+
+  # Recursively kill children
+  if [[ -n "$children" ]]; then
+    for child in $children; do
+      log "  Sending SIGTERM to child PID $child (parent=$pid, $label)"
+      kill_tree "$child" "$label/child"
+    done
+  fi
+}
+
+# ---------------------------------------------------------------------------
 # Kill processes running the dashboard watch scripts for THIS project.
 #
 # open-dashboard.sh creates panes with:
 #   bash -c "cd '${PROJECT_DIR}' && '${SCRIPT_DIR}/watch-*.sh'"
-# so the full command line of each process contains the project directory.
 #
-# Each watch script traps SIGTERM and exits cleanly; Zellij then removes the
-# pane automatically.  This avoids the fragile move-focus navigation strategy.
+# This spawns a process tree:
+#   1. bash -c "cd '/project' && '/path/to/watch-beads.sh'"   (wrapper)
+#   2.   /bin/bash /path/to/watch-beads.sh                    (child)
+#
+# The wrapper's cmdline contains PROJECT_DIR, but the child's does NOT.
+# We must kill the entire process tree — if we only kill the wrapper, the
+# child keeps running and the Zellij pane stays open.
 # ---------------------------------------------------------------------------
 
 WATCH_SCRIPTS=("watch-beads.sh" "watch-agents.sh" "watch-deploys.sh")
@@ -73,18 +102,38 @@ for script in "${WATCH_SCRIPTS[@]}"; do
       continue
     fi
 
-    # Only kill processes that belong to THIS project directory.
-    if [[ "$cmdline" != *"$PROJECT_DIR"* ]]; then
-      log "Skipping PID $pid ($script) — belongs to different project"
-      log "  cmdline: $cmdline"
+    # Direct match: process cmdline contains our project directory.
+    if [[ "$cmdline" == *"$PROJECT_DIR"* ]]; then
+      kill_tree "$pid" "$script"
+      (( killed++ )) || true
       continue
     fi
 
-    log "Sending SIGTERM to PID $pid ($script)"
-    kill "$pid" 2>/dev/null || true
-    (( killed++ )) || true
+    # Parent match: this process is a child of a wrapper whose cmdline
+    # contains our project directory (e.g. /bin/bash watch-beads.sh spawned
+    # by bash -c "cd '/project' && './watch-beads.sh'").
+    ppid=$(ps -p "$pid" -o ppid= 2>/dev/null | tr -d ' ' || true)
+    if [[ -n "$ppid" && "$ppid" != "1" ]]; then
+      parent_cmdline=$(ps -p "$ppid" -o args= 2>/dev/null || true)
+      if [[ "$parent_cmdline" == *"$PROJECT_DIR"* ]]; then
+        log "PID $pid ($script) matched via parent PID $ppid"
+        kill_tree "$pid" "$script"
+        (( killed++ )) || true
+        continue
+      fi
+    fi
+
+    log "Skipping PID $pid ($script) — belongs to different project"
+    log "  cmdline: $cmdline"
   done
 done
+
+# Give processes a moment to handle SIGTERM and exit cleanly.
+# This ensures Zellij sees the process exit and can close the pane
+# before this script (and the Stop hook) finishes.
+if [[ $killed -gt 0 ]]; then
+  sleep 0.5
+fi
 
 log "Done — sent SIGTERM to $killed process(es)."
 exit 0
