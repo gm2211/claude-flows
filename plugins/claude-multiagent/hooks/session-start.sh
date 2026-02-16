@@ -7,8 +7,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 PLUGIN_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
-# Read coordinator-role skill content
-coordinator_content=$(cat "${PLUGIN_ROOT}/skills/coordinator-role/SKILL.md" 2>&1 || echo "Error reading coordinator-role skill")
+# Read multiagent-coordinator skill content
+coordinator_content=$(cat "${PLUGIN_ROOT}/skills/multiagent-coordinator/SKILL.md" 2>&1 || echo "Error reading multiagent-coordinator skill")
 
 # Escape string for JSON embedding using bash parameter substitution.
 escape_for_json() {
@@ -31,7 +31,7 @@ cat <<EOF
 {
   "hookSpecificOutput": {
     "hookEventName": "SessionStart",
-    "additionalContext": "<EXTREMELY_IMPORTANT>\nYou are running with the claude-multiagent plugin.\n\n**Below is the full content of your 'claude-multiagent:coordinator-role' skill:**\n\n${coordinator_escaped}\n</EXTREMELY_IMPORTANT>"
+    "additionalContext": "<EXTREMELY_IMPORTANT>\nYou are running with the claude-multiagent plugin.\n\n**Below is the full content of your 'claude-multiagent:multiagent-coordinator' skill:**\n\n${coordinator_escaped}\n</EXTREMELY_IMPORTANT>"
   }
 }
 EOF

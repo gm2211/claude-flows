@@ -1,5 +1,5 @@
 ---
-name: coordinator-role
+name: multiagent-coordinator
 description: Async coordinator role -- delegates all implementation to background sub-agents working in git worktrees while staying responsive to the user
 ---
 
@@ -99,6 +99,16 @@ Do this immediately after each merge -- don't let worktrees or tickets accumulat
 **When to use:** Any work involving multiple steps. Run `bd init` once per repo, then `bd create` per task. Always `bd list` before creating to avoid duplicates.
 
 **Interpreting the user:** "bd" or "beads" = use this tool.
+
+## Dashboard
+
+Open Zellij panes showing agent status and open tickets alongside your Claude session.
+
+```bash
+"${CLAUDE_PLUGIN_ROOT:-$HOME/.claude/plugins/claude-multiagent}/scripts/open-dashboard.sh"
+```
+
+**ONLY** use `new-pane` and `move-focus` Zellij actions. **NEVER** use `close-pane`, `close-tab`, or `go-to-tab`.
 
 ## Global Preferences
 
