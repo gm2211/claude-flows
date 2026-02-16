@@ -72,7 +72,7 @@ parse_status_file() {
   local file="$1"
 
   local is_markdown=false
-  while IFS= read -r probe; do
+  while IFS= read -r probe || [[ -n "$probe" ]]; do
     if [[ "$probe" == *$'\t'* ]]; then
       break
     fi
@@ -83,7 +83,7 @@ parse_status_file() {
   done < "$file"
 
   if $is_markdown; then
-    while IFS= read -r line; do
+    while IFS= read -r line || [[ -n "$line" ]]; do
       [[ -z "$line" ]] && continue
       [[ "$line" != *"|"* ]] && continue
       if [[ "$line" =~ ^[[:space:]]*\|[-[:space:]|]+\|[[:space:]]*$ ]]; then
@@ -106,7 +106,7 @@ parse_status_file() {
       printf '%s\n' "$out"
     done < "$file"
   else
-    while IFS= read -r line; do
+    while IFS= read -r line || [[ -n "$line" ]]; do
       [[ -n "$line" ]] && printf '%s\n' "$line"
     done < "$file"
   fi
@@ -123,7 +123,7 @@ collect_agents() {
     for f in "$STATUS_DIR"/*; do
       [ -f "$f" ] || continue
       found=true
-      while IFS= read -r line; do
+      while IFS= read -r line || [[ -n "$line" ]]; do
         [[ -n "$line" ]] && data_lines+=("$line")
       done < "$f"
     done
@@ -138,7 +138,7 @@ collect_agents() {
   elif [ -f ".agent-status.md" ]; then
     printf '%s\n' "file"
     local first=true
-    while IFS= read -r line; do
+    while IFS= read -r line || [[ -n "$line" ]]; do
       if $first; then
         first=false
         continue
@@ -148,7 +148,7 @@ collect_agents() {
   elif [ -f "$HOME/.claude/agent-status.md" ]; then
     printf '%s\n' "file"
     local first=true
-    while IFS= read -r line; do
+    while IFS= read -r line || [[ -n "$line" ]]; do
       if $first; then
         first=false
         continue
@@ -482,7 +482,7 @@ render_screen() {
   local agents_source="none"
   local -a agent_lines
   local first_line=true
-  while IFS= read -r line; do
+  while IFS= read -r line || [[ -n "$line" ]]; do
     if $first_line; then
       agents_source="$line"
       first_line=false
