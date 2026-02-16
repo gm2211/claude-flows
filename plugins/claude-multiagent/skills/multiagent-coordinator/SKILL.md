@@ -11,7 +11,7 @@ You orchestrate work -- you do not execute it. Stay responsive to the user at al
 
 ### Rule Zero — absolute, no exceptions
 
-You are **FORBIDDEN** from directly executing implementation work. This includes but is not limited to: editing source files, writing code, running builds, running tests, running linters, installing dependencies, or making any file-system change that is not `.agent-status.md` or a git merge operation. There are **zero** exceptions to this rule — not for "small" changes, not for "quick fixes", not for "just this one file", not for infrastructure, not for config, not for docs. The size or simplicity of the task is irrelevant.
+You are **FORBIDDEN** from directly executing implementation work. This includes but is not limited to: editing source files, writing code, running builds, running tests, running linters, installing dependencies, or making any file-system change that is not inside `.agent-status.d/` or a git merge operation. There are **zero** exceptions to this rule — not for "small" changes, not for "quick fixes", not for "just this one file", not for infrastructure, not for config, not for docs. The size or simplicity of the task is irrelevant.
 
 **If you feel the urge to do something yourself because it seems faster or easier than dispatching a sub-agent, you MUST stop and use `AskUserQuestion` to ask:** "This seems small enough to do directly — would you like me to handle it myself, or should I dispatch a sub-agent?" **Do NOT assume the answer. Wait for the user to respond.**
 
@@ -78,31 +78,31 @@ Include verbatim in every agent prompt:
 > If you've been stuck on the same sub-task for more than 3 minutes, say so explicitly — I may be able to help.
 >
 > When you're done, send a final message with: summary of all changes, files modified, and test results.
+>
+> **Self-reporting status — you MUST also do this.**
+>
+> On each status update, write your status to `.agent-status.d/<your-agent-name>` (relative to the repo root) using the Write tool. Format: one TSV line (no header):
+> ```
+> <agent-name>\t<ticket-short-id>\t<unix-timestamp>\t<summary>\t<last-action>|<unix-timestamp>
+> ```
+> Example:
+> ```
+> my-agent\t74w\t1739000000\tWriting tests\tFinished linting|1739000060
+> ```
+> Use short ticket IDs (omit the common prefix like `claude-plugins-`). Get the current unix timestamp via Bash: `date +%s`.
+>
+> When you finish your task, delete your status file: remove `.agent-status.d/<your-agent-name>`.
 
 ## Status Updates
 
-On request, provide a table. Also update `.agent-status.md` in the repo root whenever agent state changes (dispatch, completion, merge). This file is displayed in a Zellij dashboard pane.
+Agents self-report their status to `.agent-status.d/` — the coordinator does **not** maintain a central status file.
 
-Format for `.agent-status.md` -- **TSV (tab-separated), no markdown pipes or separators**:
-```
-Agent	Ticket	Started	Summary	ETA	Needs Help?
-my-agent	74w	1739000000	Working on X	~5 min	No
-```
-The `Started` column holds a **unix timestamp** (get it via `date +%s` in Bash). The dashboard script auto-converts it to elapsed time (e.g., "2m 30s"). Write it using the **Write tool** (not Bash printf):
+**Coordinator responsibilities:**
 
-```
-Write tool -> .agent-status.md
-Content: "Agent\tTicket\tStarted\tSummary\tETA\tNeeds Help?\nmy-agent\t74w\t<unix-timestamp>\tWorking on X\t~5 min\tNo\n"
-```
+- **Before dispatching agents:** Ensure the `.agent-status.d/` directory exists (create it if needed).
+- **After cleanup (merge):** Verify the agent's status file was removed. If it still exists, delete it: `rm -f .agent-status.d/<agent-name>`.
 
-**Omit the ticket prefix** in the Ticket column — write `74w` instead of `claude-plugins-74w`. The dashboard handles prefix display, so keeping it short at the source avoids redundancy.
-
-When you receive a heartbeat from an agent, update `.agent-status.md` with:
-- **Summary:** from the agent's "Working on now" field
-- **ETA:** from the agent's estimate
-- **Needs Help?:** "Yes" if the agent reports blockers or has been stuck on the same sub-task for >3 min; "No" otherwise
-
-Remove completed agents from `.agent-status.md` after cleanup (merge + worktree removal + ticket close).
+On request, provide a verbal status table to the user by reading the files in `.agent-status.d/`.
 
 ## Merging
 
@@ -115,8 +115,9 @@ Remove completed agents from `.agent-status.md` after cleanup (merge + worktree 
 After merging a branch to main:
 1. **Remove the worktree:** `git worktree remove .worktrees/<branch>`
 2. **Delete the branch:** `git branch -d <branch>`
-3. **Close the bd ticket:** `bd close <id> --reason "..."`
-4. **Verify:** `git worktree list` should only show active work; `bd list` should have no stale open tickets
+3. **Remove the agent's status file:** `rm -f .agent-status.d/<agent-name>`
+4. **Close the bd ticket:** `bd close <id> --reason "..."`
+5. **Verify:** `git worktree list` should only show active work; `bd list` should have no stale open tickets
 
 Do this immediately after each merge -- don't let worktrees or tickets accumulate.
 
