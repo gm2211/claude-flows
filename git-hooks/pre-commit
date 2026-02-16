@@ -1,0 +1,183 @@
+#!/bin/sh
+#
+# bd (beads) pre-commit hook
+#
+# This hook ensures that any pending bd issue changes are flushed to
+# .beads/issues.jsonl before the commit is created, preventing the
+# race condition where daemon auto-flush fires after the commit.
+
+# Check if bd is available
+if ! command -v bd >/dev/null 2>&1; then
+    echo "Warning: bd command not found, skipping pre-commit flush" >&2
+    exit 0
+fi
+
+# Check if we're in a bd workspace
+# For worktrees, .beads is in the main repository root, not the worktree
+BEADS_DIR=""
+if git rev-parse --git-dir >/dev/null 2>&1; then
+    # Check if we're in a worktree
+    if [ "$(git rev-parse --git-dir)" != "$(git rev-parse --git-common-dir)" ]; then
+        # Worktree: .beads is in main repo root
+        MAIN_REPO_ROOT="$(git rev-parse --git-common-dir)"
+        MAIN_REPO_ROOT="$(dirname "$MAIN_REPO_ROOT")"
+        if [ -d "$MAIN_REPO_ROOT/.beads" ]; then
+            BEADS_DIR="$MAIN_REPO_ROOT/.beads"
+        fi
+    else
+        # Regular repo: check current directory
+        if [ -d .beads ]; then
+            BEADS_DIR=".beads"
+        fi
+    fi
+fi
+
+if [ -z "$BEADS_DIR" ]; then
+    exit 0
+fi
+
+# Skip for Dolt backend (uses its own sync mechanism, not JSONL)
+if [ -f "$BEADS_DIR/metadata.json" ]; then
+    if grep -q '"backend"[[:space:]]*:[[:space:]]*"dolt"' "$BEADS_DIR/metadata.json" 2>/dev/null; then
+        exit 0
+    fi
+fi
+
+# Flush pending changes to JSONL
+if ! bd sync --flush-only >/dev/null 2>&1; then
+    echo "Error: Failed to flush bd changes to storage" >&2
+    echo "Run 'bd sync --flush-only' manually to diagnose" >&2
+    exit 1
+fi
+
+# If the JSONL file was modified, stage it
+# For worktrees, the JSONL is in the main repo's working tree, not the worktree,
+# so we can't use git add. Skip this step for worktrees.
+if [ -f "$BEADS_DIR/issues.jsonl" ]; then
+    if [ "$(git rev-parse --git-dir)" = "$(git rev-parse --git-common-dir)" ]; then
+        # Regular repo: file is in the working tree, safe to add
+        git add "$BEADS_DIR/issues.jsonl" 2>/dev/null || true
+    fi
+    # For worktrees: .beads is in the main repo's working tree, not this worktree
+    # Git rejects adding files outside the worktree, so we skip it.
+    # The main repo will see the changes on the next pull/sync.
+fi
+
+#
+# Version-bump check for plugins
+#
+# For each plugin directory, if any file is staged (beyond plugin.json itself),
+# the plugin.json version must differ from HEAD.
+#
+
+for PLUGIN_DIR in plugins/*/; do
+    PLUGIN_JSON="${PLUGIN_DIR}.claude-plugin/plugin.json"
+
+    # Skip if this plugin has no plugin.json
+    [ -f "$PLUGIN_JSON" ] || continue
+
+    # Get staged files in this plugin dir (excluding plugin.json)
+    STAGED=$(git diff --cached --name-only -- "$PLUGIN_DIR" | grep -v "\.claude-plugin/plugin\.json$" || true)
+
+    # If no non-plugin.json files staged, nothing to check
+    [ -z "$STAGED" ] && continue
+
+    # Compare the staged version to HEAD version
+    OLD_VERSION=$(git show HEAD:"$PLUGIN_JSON" 2>/dev/null | grep '"version"' | sed 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/')
+    NEW_VERSION=$(git show :"$PLUGIN_JSON" 2>/dev/null | grep '"version"' | sed 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/')
+
+    # If we can't read HEAD version (new plugin), skip
+    [ -z "$OLD_VERSION" ] && continue
+
+    # If plugin.json isn't even staged, fail
+    if [ -z "$NEW_VERSION" ]; then
+        NEW_VERSION="$OLD_VERSION"
+    fi
+
+    if [ "$OLD_VERSION" = "$NEW_VERSION" ]; then
+        echo "Error: Plugin version not bumped in $PLUGIN_JSON" >&2
+        echo "  Current version: $OLD_VERSION" >&2
+        echo "  Staged plugin files:" >&2
+        echo "$STAGED" | sed 's/^/    /' >&2
+        echo "" >&2
+        echo "  Bump the minor version before committing." >&2
+        exit 1
+    fi
+done
+
+#
+# Marketplace version sync
+#
+# When a plugin's plugin.json version is staged, ensure marketplace.json
+# is updated to match, so the /plugin UI shows the correct version.
+#
+
+MARKETPLACE_JSON=".claude-plugin/marketplace.json"
+
+if [ -f "$MARKETPLACE_JSON" ]; then
+    MARKETPLACE_UPDATED=false
+
+    for PLUGIN_DIR in plugins/*/; do
+        PLUGIN_JSON="${PLUGIN_DIR}.claude-plugin/plugin.json"
+        [ -f "$PLUGIN_JSON" ] || continue
+
+        # Only act if plugin.json is staged with a version change
+        PLUGIN_JSON_STAGED=$(git diff --cached --name-only -- "$PLUGIN_JSON" | head -1)
+        [ -z "$PLUGIN_JSON_STAGED" ] && continue
+
+        # Extract the plugin name (directory basename)
+        PLUGIN_NAME=$(basename "$PLUGIN_DIR")
+
+        # Get the new version from the staged plugin.json
+        NEW_PLUGIN_VERSION=$(git show :"$PLUGIN_JSON" 2>/dev/null | grep '"version"' | sed 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/')
+        [ -z "$NEW_PLUGIN_VERSION" ] && continue
+
+        # Get the current marketplace version for this plugin
+        # Use python/node if available, fall back to sed
+        if command -v python3 >/dev/null 2>&1; then
+            MARKETPLACE_VERSION=$(python3 -c "
+import json, sys
+with open('$MARKETPLACE_JSON') as f:
+    data = json.load(f)
+for p in data.get('plugins', []):
+    if p.get('name') == '$PLUGIN_NAME':
+        print(p.get('version', ''))
+        break
+" 2>/dev/null)
+        else
+            MARKETPLACE_VERSION=$(grep -A3 "\"name\"[[:space:]]*:[[:space:]]*\"$PLUGIN_NAME\"" "$MARKETPLACE_JSON" | grep '"version"' | sed 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/')
+        fi
+
+        if [ "$MARKETPLACE_VERSION" != "$NEW_PLUGIN_VERSION" ]; then
+            echo "Syncing marketplace.json version for '$PLUGIN_NAME': $MARKETPLACE_VERSION -> $NEW_PLUGIN_VERSION" >&2
+
+            if command -v python3 >/dev/null 2>&1; then
+                python3 -c "
+import json
+with open('$MARKETPLACE_JSON') as f:
+    data = json.load(f)
+for p in data.get('plugins', []):
+    if p.get('name') == '$PLUGIN_NAME':
+        p['version'] = '$NEW_PLUGIN_VERSION'
+        break
+with open('$MARKETPLACE_JSON', 'w') as f:
+    json.dump(data, f, indent=2)
+    f.write('\n')
+" 2>/dev/null
+            else
+                # Fallback: use sed for simple replacement
+                sed -i.bak "s/\"version\"[[:space:]]*:[[:space:]]*\"$MARKETPLACE_VERSION\"/\"version\": \"$NEW_PLUGIN_VERSION\"/" "$MARKETPLACE_JSON"
+                rm -f "${MARKETPLACE_JSON}.bak"
+            fi
+
+            git add "$MARKETPLACE_JSON"
+            MARKETPLACE_UPDATED=true
+        fi
+    done
+
+    if [ "$MARKETPLACE_UPDATED" = true ]; then
+        echo "marketplace.json version(s) synced and staged." >&2
+    fi
+fi
+
+exit 0
