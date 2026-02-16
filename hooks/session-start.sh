@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# SessionStart hook for agentic-claude plugin
+# SessionStart hook for claude-multiagent plugin
 
 set -euo pipefail
 
@@ -28,7 +28,7 @@ cat <<EOF
 {
   "hookSpecificOutput": {
     "hookEventName": "SessionStart",
-    "additionalContext": "<EXTREMELY_IMPORTANT>\nYou are running with the agentic-claude plugin.\n\n**Below is the full content of your 'agentic-claude:coordinator-role' skill. For the dashboard skill, use the 'Skill' tool:**\n\n${coordinator_escaped}\n</EXTREMELY_IMPORTANT>"
+    "additionalContext": "<EXTREMELY_IMPORTANT>\nYou are running with the claude-multiagent plugin.\n\n**Below is the full content of your 'claude-multiagent:coordinator-role' skill. For the dashboard skill, use the 'Skill' tool:**\n\n${coordinator_escaped}\n</EXTREMELY_IMPORTANT>"
   }
 }
 EOF

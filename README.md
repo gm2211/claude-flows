@@ -1,13 +1,13 @@
-# agentic-claude
+# claude-multiagent
 
 A [Claude Code](https://docs.anthropic.com/en/docs/claude-code) plugin that turns Claude into an async coordinator -- it delegates all implementation to background sub-agents working in git worktrees while staying responsive to you.
 
 ## Install
 
 ```bash
-claude plugin add -- /path/to/agentic-claude
+claude plugin add -- /path/to/claude-multiagent
 # or from GitHub:
-claude plugin add -- https://github.com/gm2211/agentic-claude
+claude plugin add -- https://github.com/gm2211/claude-multiagent
 ```
 
 ## What You Get
