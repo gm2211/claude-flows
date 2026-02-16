@@ -63,7 +63,7 @@ Use **teams** (TeamCreate) so you can message agents mid-flight via SendMessage.
 
 ### Agent Reporting Instructions
 
-Include verbatim in every agent prompt:
+Include verbatim in every agent prompt, replacing `PROJECT_DIR` with the **absolute path to the main repo root** (NOT the worktree path):
 
 > **Reporting — you MUST follow this.**
 >
@@ -82,7 +82,7 @@ Include verbatim in every agent prompt:
 >
 > **Self-reporting status — you MUST also do this.**
 >
-> On each status update, write your status to `.agent-status.d/<your-agent-name>` (relative to the repo root) using the Write tool. Format: one TSV line (no header):
+> On each status update, write your status to `PROJECT_DIR/.agent-status.d/<your-agent-name>` using the Write tool. **Use the absolute PROJECT_DIR path provided in your prompt — do NOT use a relative path or `git rev-parse --show-toplevel` (which returns the worktree path, not the main repo root).** Format: one TSV line (no header):
 > ```
 > <agent-name>\t<ticket-short-id>\t<unix-timestamp>\t<summary>\t<last-action>|<unix-timestamp>
 > ```
@@ -92,7 +92,7 @@ Include verbatim in every agent prompt:
 > ```
 > Use short ticket IDs (omit the common prefix like `claude-plugins-`). Get the current unix timestamp via Bash: `date +%s`.
 >
-> When you finish your task, delete your status file: remove `.agent-status.d/<your-agent-name>`.
+> When you finish your task, delete your status file: remove `PROJECT_DIR/.agent-status.d/<your-agent-name>`.
 
 ### Status Manager Agent
 

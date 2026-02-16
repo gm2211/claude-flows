@@ -117,24 +117,62 @@ parse_status_file() {
 #   Remaining lines: TSV data (no header) with the new schema:
 #     agent_name \t ticket_ids \t start_timestamp \t summary \t last_action_raw
 collect_agents() {
-  if [ -d "$STATUS_DIR" ]; then
-    local found=false
-    local -a data_lines
-    for f in "$STATUS_DIR"/*; do
+  local found=false
+  local -a data_lines
+  local -a seen_agents
+
+  # Helper: read status files from a directory, deduplicating by agent name
+  _read_status_dir() {
+    local dir="$1"
+    [ -d "$dir" ] || return
+    for f in "$dir"/*; do
       [ -f "$f" ] || continue
-      found=true
+      local agent_name
+      agent_name=$(basename "$f")
+      # Skip if we already have data for this agent (main dir takes priority)
+      local already=false
+      for sa in "${seen_agents[@]+"${seen_agents[@]}"}"; do
+        if [ "$sa" = "$agent_name" ]; then
+          already=true
+          break
+        fi
+      done
+      $already && continue
       while IFS= read -r line || [[ -n "$line" ]]; do
-        [[ -n "$line" ]] && data_lines+=("$line")
+        if [[ -n "$line" ]]; then
+          found=true
+          data_lines+=("$line")
+          seen_agents+=("$agent_name")
+        fi
       done < "$f"
     done
-    if $found && [ ${#data_lines[@]} -gt 0 ]; then
-      printf '%s\n' "dir"
-      for dl in "${data_lines[@]}"; do
-        printf '%s\n' "$dl"
+  }
+
+  # Primary: read from the main .agent-status.d/ directory
+  _read_status_dir "$STATUS_DIR"
+
+  # Fallback: also scan worktree .agent-status.d/ directories in case
+  # agents wrote to their worktree root instead of the main repo root
+  if [ -d ".worktrees" ]; then
+    for wt_dir in .worktrees/*; do
+      [ -d "$wt_dir" ] || continue
+      # Worktrees may be nested (e.g., .worktrees/fix/branch-name)
+      if [ -d "$wt_dir/$STATUS_DIR" ]; then
+        _read_status_dir "$wt_dir/$STATUS_DIR"
+      fi
+      for nested in "$wt_dir"/*/; do
+        [ -d "$nested$STATUS_DIR" ] && _read_status_dir "$nested$STATUS_DIR"
       done
-    else
-      printf '%s\n' "dir_empty"
-    fi
+    done
+  fi
+
+  if $found && [ ${#data_lines[@]} -gt 0 ]; then
+    printf '%s\n' "dir"
+    for dl in "${data_lines[@]}"; do
+      printf '%s\n' "$dl"
+    done
+  elif [ -d "$STATUS_DIR" ] || [ -d ".worktrees" ]; then
+    printf '%s\n' "dir_empty"
   elif [ -f ".agent-status.md" ]; then
     printf '%s\n' "file"
     local first=true
@@ -559,9 +597,18 @@ render_screen() {
 render_screen
 
 if command -v fswatch &>/dev/null; then
-  # Watch both the new directory and legacy file locations
+  # Build list of paths to watch: main status dir, worktree status dirs, and legacy files
+  watch_paths=("$STATUS_DIR" ".agent-status.md" "$HOME/.claude/agent-status.md")
+  if [ -d ".worktrees" ]; then
+    for wt_dir in .worktrees/*; do
+      [ -d "$wt_dir/$STATUS_DIR" ] && watch_paths+=("$wt_dir/$STATUS_DIR")
+      for nested in "$wt_dir"/*/; do
+        [ -d "$nested$STATUS_DIR" ] && watch_paths+=("$nested$STATUS_DIR")
+      done
+    done
+  fi
   fswatch --latency 0.5 --one-per-batch \
-    "$STATUS_DIR" ".agent-status.md" "$HOME/.claude/agent-status.md" 2>/dev/null \
+    "${watch_paths[@]}" 2>/dev/null \
   | while read -r _; do
     render_screen
   done
