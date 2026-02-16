@@ -1,6 +1,8 @@
 #!/bin/bash
-# Watches .agent-status.md and renders a pretty Unicode table
-# Uses fswatch for efficient event-driven updates, falls back to polling
+# Watches agent status files and renders a pretty Unicode table or card layout.
+# Reads per-agent files from .agent-status.d/ (preferred) or falls back to
+# .agent-status.md for backward compatibility.
+# Uses fswatch for efficient event-driven updates, falls back to polling.
 
 # Force UTF-8 for Unicode box-drawing characters
 export LC_ALL=en_US.UTF-8
@@ -9,6 +11,8 @@ export LANG=en_US.UTF-8
 # Hide cursor; restore on exit
 trap 'tput cnorm 2>/dev/null; exit' INT TERM EXIT
 tput civis 2>/dev/null
+
+STATUS_DIR=".agent-status.d"
 
 elapsed_since() {
   local start="$1"
@@ -19,6 +23,7 @@ elapsed_since() {
   local now diff
   now=$(date +%s)
   diff=$(( now - start ))
+  if [ $diff -lt 0 ]; then diff=0; fi
   if [ $diff -lt 60 ]; then
     printf '%ds' "$diff"
   elif [ $diff -lt 3600 ]; then
@@ -28,16 +33,46 @@ elapsed_since() {
   fi
 }
 
-# Parse a status file that may be TSV or Markdown table format.
+# Format a "Last Action" field: "desc|timestamp" -> "desc (Xm ago)"
+format_last_action() {
+  local raw="$1"
+  if [[ "$raw" == *"|"* ]]; then
+    local desc="${raw%|*}"
+    local ts="${raw##*|}"
+    if [[ "$ts" =~ ^[0-9]+$ ]]; then
+      local ago
+      ago=$(elapsed_since "$ts")
+      printf '%s (%s ago)' "$desc" "$ago"
+    else
+      printf '%s' "$desc"
+    fi
+  else
+    printf '%s' "$raw"
+  fi
+}
+
+# Compute the longest common prefix among a list of strings.
+common_prefix() {
+  local -a items=("$@")
+  [ ${#items[@]} -eq 0 ] && return
+  local prefix="${items[0]}"
+  for item in "${items[@]:1}"; do
+    while [ ${#prefix} -gt 0 ] && [[ "$item" != "${prefix}"* ]]; do
+      prefix="${prefix%?}"
+    done
+    [ ${#prefix} -eq 0 ] && break
+  done
+  printf '%s' "$prefix"
+}
+
+# Parse a legacy status file that may be TSV or Markdown table format.
 # Outputs clean TSV lines (one per row, header first).
 parse_status_file() {
   local file="$1"
 
-  # Detect format: scan for any line containing a pipe character
   local is_markdown=false
   while IFS= read -r probe; do
     if [[ "$probe" == *$'\t'* ]]; then
-      # Contains a tab -- TSV format
       break
     fi
     if [[ "$probe" == *"|"* ]]; then
@@ -48,20 +83,15 @@ parse_status_file() {
 
   if $is_markdown; then
     while IFS= read -r line; do
-      # Skip blank lines and non-table lines (e.g. "=== Agent Status ===")
       [[ -z "$line" ]] && continue
       [[ "$line" != *"|"* ]] && continue
-      # Skip markdown separator rows like |---|---|
       if [[ "$line" =~ ^[[:space:]]*\|[-[:space:]|]+\|[[:space:]]*$ ]]; then
         continue
       fi
-      # Strip leading/trailing whitespace
       line="${line#"${line%%[![:space:]]*}"}"
       line="${line%"${line##*[![:space:]]}"}"
-      # Strip leading/trailing pipes
       line="${line#|}"
       line="${line%|}"
-      # Split on |, trim each cell, rejoin with tabs
       local out=""
       local IFS='|'
       local -a parts
@@ -75,62 +105,190 @@ parse_status_file() {
       printf '%s\n' "$out"
     done < "$file"
   else
-    # Already TSV -- pass through non-empty lines
     while IFS= read -r line; do
       [[ -n "$line" ]] && printf '%s\n' "$line"
     done < "$file"
   fi
 }
 
+# Collect agent data lines. Outputs lines to stdout:
+#   First line: source indicator ("dir", "dir_empty", "file", or "none")
+#   Remaining lines: TSV data (no header) with the new schema:
+#     agent_name \t ticket_ids \t start_timestamp \t summary \t last_action_raw
+collect_agents() {
+  if [ -d "$STATUS_DIR" ]; then
+    local found=false
+    local -a data_lines
+    for f in "$STATUS_DIR"/*; do
+      [ -f "$f" ] || continue
+      found=true
+      while IFS= read -r line; do
+        [[ -n "$line" ]] && data_lines+=("$line")
+      done < "$f"
+    done
+    if $found && [ ${#data_lines[@]} -gt 0 ]; then
+      printf '%s\n' "dir"
+      for dl in "${data_lines[@]}"; do
+        printf '%s\n' "$dl"
+      done
+    else
+      printf '%s\n' "dir_empty"
+    fi
+  elif [ -f ".agent-status.md" ]; then
+    printf '%s\n' "file"
+    local first=true
+    while IFS= read -r line; do
+      if $first; then
+        first=false
+        continue
+      fi
+      printf '%s\n' "$line"
+    done < <(parse_status_file ".agent-status.md")
+  elif [ -f "$HOME/.claude/agent-status.md" ]; then
+    printf '%s\n' "file"
+    local first=true
+    while IFS= read -r line; do
+      if $first; then
+        first=false
+        continue
+      fi
+      printf '%s\n' "$line"
+    done < <(parse_status_file "$HOME/.claude/agent-status.md")
+  else
+    printf '%s\n' "none"
+  fi
+}
+
+# Helper: repeat a character N times
+repchar() { printf '%*s' "$2" '' | tr ' ' "$1"; }
+
+# Render the table layout (normal/medium widths).
 render_table() {
-  local file="$1"
+  local -a raw_lines=("$@")
   local -a lines
   local -a widths
   local ncols=0
-  local duration_col=-1
   local term_width
   term_width=$(tput cols 2>/dev/null || printf '80')
 
-  # Read parsed lines, resolve Duration/Started column timestamps
-  local line_idx=0
-  while IFS= read -r line; do
-    [[ -z "$line" ]] && continue
-    if [ $line_idx -eq 0 ]; then
-      IFS=$'\t' read -ra hdr <<< "$line"
-      for ((c=0; c<${#hdr[@]}; c++)); do
-        if [ "${hdr[$c]}" = "Started" ]; then
-          duration_col=$c
-        fi
-      done
-      line="${line/Started/Duration}"
-    elif [ $duration_col -ge 0 ]; then
-      IFS=$'\t' read -ra cells <<< "$line"
-      cells[$duration_col]=$(elapsed_since "${cells[$duration_col]}")
-      local joined=""
-      for ((c=0; c<${#cells[@]}; c++)); do
-        [ $c -gt 0 ] && joined+=$'\t'
-        joined+="${cells[$c]}"
-      done
-      line="$joined"
-    fi
-    lines+=("$line")
-    ((line_idx++))
-  done < <(parse_status_file "$file")
+  # Collect all ticket IDs for shared-prefix stripping
+  local -a all_tickets
+  for raw in "${raw_lines[@]}"; do
+    IFS=$'\t' read -ra cells <<< "$raw"
+    [[ -n "${cells[1]:-}" ]] && all_tickets+=("${cells[1]}")
+  done
 
-  [ ${#lines[@]} -eq 0 ] && return
+  # Find shared prefix across all tickets (split on comma for multi-ticket)
+  local -a ticket_atoms
+  for t in "${all_tickets[@]}"; do
+    IFS=',' read -ra parts <<< "$t"
+    for p in "${parts[@]}"; do
+      p="${p#"${p%%[![:space:]]*}"}"
+      p="${p%"${p##*[![:space:]]}"}"
+      [[ -n "$p" ]] && ticket_atoms+=("$p")
+    done
+  done
+  local shared_prefix=""
+  if [ ${#ticket_atoms[@]} -gt 1 ]; then
+    shared_prefix=$(common_prefix "${ticket_atoms[@]}")
+    # Only strip prefix that ends on a word boundary (- or /)
+    if [[ -n "$shared_prefix" ]] && [[ "$shared_prefix" != *"-" ]] && [[ "$shared_prefix" != *"/" ]]; then
+      # Truncate to last - or /
+      local trimmed="${shared_prefix%-*}"
+      if [[ "$trimmed" != "$shared_prefix" ]]; then
+        shared_prefix="${trimmed}-"
+      else
+        trimmed="${shared_prefix%/*}"
+        if [[ "$trimmed" != "$shared_prefix" ]]; then
+          shared_prefix="${trimmed}/"
+        else
+          shared_prefix=""
+        fi
+      fi
+    fi
+  fi
+
+  # Build header
+  local header
+  header=$'Agent\tTicket(s)\tDuration\tSummary\tLast Action'
+
+  # Determine columns to hide at medium width
+  # Columns: 0=Agent, 1=Ticket(s), 2=Duration, 3=Summary, 4=Last Action
+  local -a visible_cols=(0 1 2 3 4)
+  local -a col_headers=("Agent" "Ticket(s)" "Duration" "Summary" "Last Action")
+
+  # At medium width (<80), hide Ticket(s) column
+  if [ "$term_width" -lt 80 ]; then
+    visible_cols=(0 2 3 4)
+  fi
+
+  # Process data rows
+  local -a processed_rows
+  for raw in "${raw_lines[@]}"; do
+    IFS=$'\t' read -ra cells <<< "$raw"
+    local agent="${cells[0]:-}"
+    local tickets="${cells[1]:-}"
+    local start_ts="${cells[2]:-}"
+    local summary="${cells[3]:-}"
+    local last_action_raw="${cells[4]:-}"
+
+    # Compute duration
+    local duration
+    duration=$(elapsed_since "$start_ts")
+
+    # Strip shared prefix from tickets
+    if [[ -n "$shared_prefix" ]] && [[ -n "$tickets" ]]; then
+      local stripped=""
+      IFS=',' read -ra tparts <<< "$tickets"
+      for tp in "${tparts[@]}"; do
+        tp="${tp#"${tp%%[![:space:]]*}"}"
+        tp="${tp%"${tp##*[![:space:]]}"}"
+        tp="${tp#"$shared_prefix"}"
+        [ -n "$stripped" ] && stripped+=", "
+        stripped+="$tp"
+      done
+      tickets="$stripped"
+    fi
+
+    # Format last action
+    local last_action
+    last_action=$(format_last_action "$last_action_raw")
+
+    local row="${agent}"$'\t'"${tickets}"$'\t'"${duration}"$'\t'"${summary}"$'\t'"${last_action}"
+    processed_rows+=("$row")
+  done
+
+  # Build display lines (header + data) with only visible columns
+  local -a display_lines
+  # Header
+  local hdr_line=""
+  for vc in "${visible_cols[@]}"; do
+    [ -n "$hdr_line" ] && hdr_line+=$'\t'
+    hdr_line+="${col_headers[$vc]}"
+  done
+  display_lines+=("$hdr_line")
+
+  # Data
+  for row in "${processed_rows[@]}"; do
+    IFS=$'\t' read -ra all_cells <<< "$row"
+    local disp_line=""
+    for vc in "${visible_cols[@]}"; do
+      [ -n "$disp_line" ] && disp_line+=$'\t'
+      disp_line+="${all_cells[$vc]:-}"
+    done
+    display_lines+=("$disp_line")
+  done
 
   # Calculate column widths
-  for line in "${lines[@]}"; do
+  ncols=${#visible_cols[@]}
+  widths=()
+  for ((i=0; i<ncols; i++)); do widths[$i]=0; done
+
+  for line in "${display_lines[@]}"; do
     IFS=$'\t' read -ra cells <<< "$line"
-    local i=0
-    for cell in "${cells[@]}"; do
-      local len=${#cell}
-      if [ $i -ge $ncols ]; then
-        ncols=$((i + 1))
-        widths[$i]=0
-      fi
+    for ((i=0; i<ncols; i++)); do
+      local len=${#cells[$i]}
       [ $len -gt ${widths[$i]:-0} ] && widths[$i]=$len
-      ((i++))
     done
   done
 
@@ -142,16 +300,13 @@ render_table() {
   done
 
   # Shrink columns if table exceeds terminal width
-  # Total width = sum(widths) + ncols + 1  (for the vertical bars)
   local total=0
   for ((i=0; i<ncols; i++)); do total=$(( total + widths[i] )); done
   total=$(( total + ncols + 1 ))
-  local min_col=5  # minimum column width (3 content + 2 padding)
+  local min_col=5
   if [ $total -gt $term_width ] && [ $ncols -gt 0 ]; then
     local excess=$(( total - term_width ))
-    # Iteratively shrink the widest column by 1 until we fit
     while [ $excess -gt 0 ]; do
-      # Find the widest shrinkable column
       local widest=-1 widest_w=0
       for ((i=0; i<ncols; i++)); do
         if [ ${widths[$i]} -gt $min_col ] && [ ${widths[$i]} -gt $widest_w ]; then
@@ -159,14 +314,11 @@ render_table() {
           widest_w=${widths[$i]}
         fi
       done
-      [ $widest -lt 0 ] && break  # nothing left to shrink
+      [ $widest -lt 0 ] && break
       widths[$widest]=$(( widths[$widest] - 1 ))
       excess=$(( excess - 1 ))
     done
   fi
-
-  # Helper: repeat a character N times
-  repchar() { printf '%*s' "$2" '' | tr ' ' "$1"; }
 
   # Build horizontal borders
   local top_border mid_border bot_border
@@ -190,14 +342,13 @@ render_table() {
   printf '%s\n' "$top_border"
 
   local row_idx=0
-  for line in "${lines[@]}"; do
+  for line in "${display_lines[@]}"; do
     IFS=$'\t' read -ra cells <<< "$line"
     local row="│"
     for ((i=0; i<ncols; i++)); do
       local cell="${cells[$i]:-}"
       local w=${widths[$i]}
       local len=${#cell}
-      # Truncate cell if it exceeds available space inside the column
       local max_content=$(( w - 2 ))
       if [ $max_content -lt 1 ]; then max_content=1; fi
       if [ $len -gt $max_content ]; then
@@ -209,12 +360,10 @@ render_table() {
         len=${#cell}
       fi
       if [ $row_idx -eq 0 ]; then
-        # Center-align headers
         local pad=$(( (w - len) / 2 ))
         local rpad=$(( w - len - pad ))
         printf -v row '%s%*s%s%*s│' "$row" "$pad" '' "$cell" "$rpad" ''
       else
-        # Left-align data with 1-space left padding
         local rpad=$(( w - len - 1 ))
         printf -v row '%s %s%*s│' "$row" "$cell" "$rpad" ''
       fi
@@ -229,12 +378,105 @@ render_table() {
   printf '%s\n' "$bot_border"
 }
 
-resolve_status_file() {
-  if [ -f ".agent-status.md" ]; then
-    printf '%s' ".agent-status.md"
-  elif [ -f "$HOME/.claude/agent-status.md" ]; then
-    printf '%s' "$HOME/.claude/agent-status.md"
+# Render the stacked/card layout for narrow panes (<60 cols).
+render_cards() {
+  local -a raw_lines=("$@")
+  local term_width
+  term_width=$(tput cols 2>/dev/null || printf '80')
+
+  # Collect tickets for shared-prefix stripping
+  local -a all_tickets
+  for raw in "${raw_lines[@]}"; do
+    IFS=$'\t' read -ra cells <<< "$raw"
+    [[ -n "${cells[1]:-}" ]] && all_tickets+=("${cells[1]}")
+  done
+
+  local -a ticket_atoms
+  for t in "${all_tickets[@]}"; do
+    IFS=',' read -ra parts <<< "$t"
+    for p in "${parts[@]}"; do
+      p="${p#"${p%%[![:space:]]*}"}"
+      p="${p%"${p##*[![:space:]]}"}"
+      [[ -n "$p" ]] && ticket_atoms+=("$p")
+    done
+  done
+  local shared_prefix=""
+  if [ ${#ticket_atoms[@]} -gt 1 ]; then
+    shared_prefix=$(common_prefix "${ticket_atoms[@]}")
+    if [[ -n "$shared_prefix" ]] && [[ "$shared_prefix" != *"-" ]] && [[ "$shared_prefix" != *"/" ]]; then
+      local trimmed="${shared_prefix%-*}"
+      if [[ "$trimmed" != "$shared_prefix" ]]; then
+        shared_prefix="${trimmed}-"
+      else
+        trimmed="${shared_prefix%/*}"
+        if [[ "$trimmed" != "$shared_prefix" ]]; then
+          shared_prefix="${trimmed}/"
+        else
+          shared_prefix=""
+        fi
+      fi
+    fi
   fi
+
+  local card_width=$(( term_width - 2 ))
+  [ $card_width -lt 20 ] && card_width=20
+
+  for raw in "${raw_lines[@]}"; do
+    IFS=$'\t' read -ra cells <<< "$raw"
+    local agent="${cells[0]:-}"
+    local tickets="${cells[1]:-}"
+    local start_ts="${cells[2]:-}"
+    local summary="${cells[3]:-}"
+    local last_action_raw="${cells[4]:-}"
+
+    local duration
+    duration=$(elapsed_since "$start_ts")
+
+    # Strip shared prefix from tickets
+    if [[ -n "$shared_prefix" ]] && [[ -n "$tickets" ]]; then
+      local stripped=""
+      IFS=',' read -ra tparts <<< "$tickets"
+      for tp in "${tparts[@]}"; do
+        tp="${tp#"${tp%%[![:space:]]*}"}"
+        tp="${tp%"${tp##*[![:space:]]}"}"
+        tp="${tp#"$shared_prefix"}"
+        [ -n "$stripped" ] && stripped+=", "
+        stripped+="$tp"
+      done
+      tickets="$stripped"
+    fi
+
+    local last_action
+    last_action=$(format_last_action "$last_action_raw")
+
+    # Card header: ── agent (ticket) ────
+    local card_title="$agent"
+    [[ -n "$tickets" ]] && card_title+=" ($tickets)"
+
+    local title_len=${#card_title}
+    local dashes_after=$(( card_width - title_len - 5 ))
+    [ $dashes_after -lt 2 ] && dashes_after=2
+
+    printf '── %s %s\n' "$card_title" "$(repchar '─' "$dashes_after")"
+
+    # Truncate values to fit card width
+    local label_width=10  # "Duration: " is longest at 10
+    local value_max=$(( card_width - label_width ))
+    [ $value_max -lt 5 ] && value_max=5
+
+    printf ' Duration: %s\n' "${duration:0:$value_max}"
+    if [ ${#summary} -gt $value_max ]; then
+      printf ' Summary:  %s..\n' "${summary:0:$((value_max - 2))}"
+    else
+      printf ' Summary:  %s\n' "$summary"
+    fi
+    if [ ${#last_action} -gt $value_max ]; then
+      printf ' Last:     %s..\n' "${last_action:0:$((value_max - 2))}"
+    else
+      printf ' Last:     %s\n' "$last_action"
+    fi
+    printf '\n'
+  done
 }
 
 FIRST_RENDER=true
@@ -244,19 +486,38 @@ render_screen() {
     clear
     FIRST_RENDER=false
   else
-    # Move cursor to top-left and clear screen from there -- flicker-free
     tput cup 0 0 2>/dev/null
     tput ed 2>/dev/null
   fi
 
-  local status_file
-  status_file=$(resolve_status_file)
+  local term_width
+  term_width=$(tput cols 2>/dev/null || printf '80')
+
+  # Collect agent data; first line is the source indicator
+  local agents_source="none"
+  local -a agent_lines
+  local first_line=true
+  while IFS= read -r line; do
+    if $first_line; then
+      agents_source="$line"
+      first_line=false
+      continue
+    fi
+    [[ -n "$line" ]] && agent_lines+=("$line")
+  done < <(collect_agents)
+
   printf 'Agent Status\n\n'
-  if [ -n "$status_file" ] && [ -f "$status_file" ]; then
-    render_table "$status_file"
-  else
+
+  if [ "$agents_source" = "none" ] || [ "$agents_source" = "dir_empty" ]; then
     printf '  No agents running.\n'
+  elif [ ${#agent_lines[@]} -eq 0 ]; then
+    printf '  No agents running.\n'
+  elif [ "$term_width" -lt 60 ]; then
+    render_cards "${agent_lines[@]}"
+  else
+    render_table "${agent_lines[@]}"
   fi
+
   printf '\nUpdated %s\n' "$(date '+%H:%M:%S')"
 }
 
@@ -264,18 +525,15 @@ render_screen() {
 render_screen
 
 if command -v fswatch &>/dev/null; then
-  # Event-driven: watch both possible locations, re-render on change
-  # --latency 0.5: debounce rapid writes
-  # --one-per-batch: single event per batch of changes
+  # Watch both the new directory and legacy file locations
   fswatch --latency 0.5 --one-per-batch \
-    ".agent-status.md" "$HOME/.claude/agent-status.md" 2>/dev/null \
+    "$STATUS_DIR" ".agent-status.md" "$HOME/.claude/agent-status.md" 2>/dev/null \
   | while read -r _; do
     render_screen
   done
-  # fswatch exited (e.g. neither file exists yet) -- fall through to polling
 fi
 
-# Fallback: poll every 5s (also used while waiting for status file to appear)
+# Fallback: poll every 5s
 while true; do
   sleep 5
   render_screen

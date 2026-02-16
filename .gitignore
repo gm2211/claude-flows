@@ -1,4 +1,5 @@
 .worktrees/
 .agent-status.md
+.agent-status.d/
 .beads/
 .DS_Store
