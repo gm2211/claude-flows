@@ -23,6 +23,13 @@ escape_for_json() {
 
 coordinator_escaped=$(escape_for_json "$coordinator_content")
 
+# Open Zellij dashboard panes if inside Zellij
+if [ -n "${ZELLIJ:-}" ]; then
+  zellij action new-pane --direction right -- bash -c "cd '${PWD}' && '${PLUGIN_ROOT}/scripts/watch-beads.sh'" 2>/dev/null || true
+  zellij action new-pane --direction down -- bash -c "cd '${PWD}' && '${PLUGIN_ROOT}/scripts/watch-agents.sh'" 2>/dev/null || true
+  zellij action move-focus left 2>/dev/null || true
+fi
+
 # Output context injection as JSON
 cat <<EOF
 {
