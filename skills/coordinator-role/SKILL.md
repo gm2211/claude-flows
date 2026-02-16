@@ -32,9 +32,27 @@ Use **teams** (TeamCreate) so you can message agents mid-flight via SendMessage.
   git worktree add .worktrees/<branch> -b <branch>
   cd .worktrees/<branch> && npm ci  # or your project's install command
   ```
-- Prompt must include: bd ticket ID, acceptance criteria, repo path, worktree conventions, test/build commands
+- Prompt must include: bd ticket ID, acceptance criteria, repo path, worktree conventions, test/build commands, and the **reporting instructions** below
 - **Course-correction:** Use `SendMessage` to nudge stuck agents (e.g., "check git history" or "focus on file X"). Agents receive messages between turns.
-- **Heartbeat:** Include in every agent prompt: "Send me a status update via SendMessage every 30 seconds: what you're working on, progress, and any blockers."
+
+### Agent Reporting Instructions
+
+Include verbatim in every agent prompt:
+
+> **Reporting — you MUST follow this.**
+>
+> Send me a status update via `SendMessage` every 60 seconds. Each update must include:
+>
+> 1. **Phase:** which step of the task you're on (e.g., "2/5 — writing tests")
+> 2. **Just finished:** what you completed since the last update
+> 3. **Working on now:** what you're currently doing
+> 4. **Blockers:** anything preventing progress (empty if none)
+> 5. **ETA:** your best estimate for completion (e.g., "~3 min")
+> 6. **Files touched:** list of files created or modified so far
+>
+> If you've been stuck on the same sub-task for more than 3 minutes, say so explicitly — I may be able to help.
+>
+> When you're done, send a final message with: summary of all changes, files modified, and test results.
 
 ## Status Updates
 
@@ -50,7 +68,12 @@ The `Started` column holds a **unix timestamp** (`date +%s`). The dashboard scri
 printf 'Agent\tTicket\tStarted\tSummary\tETA\tNeeds Help?\nmy-agent\tabc\t%s\tWorking on X\t~5 min\tNo\n' "$(date +%s)" > .agent-status.md
 ```
 
-Check agent output files via Read/Bash, or message agents directly for status. Remove completed agents from `.agent-status.md` after cleanup (merge + worktree removal + ticket close).
+When you receive a heartbeat from an agent, update `.agent-status.md` with:
+- **Summary:** from the agent's "Working on now" field
+- **ETA:** from the agent's estimate
+- **Needs Help?:** "Yes" if the agent reports blockers or has been stuck on the same sub-task for >3 min; "No" otherwise
+
+Remove completed agents from `.agent-status.md` after cleanup (merge + worktree removal + ticket close).
 
 ## Merging
 
