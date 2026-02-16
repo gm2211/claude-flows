@@ -9,9 +9,10 @@ export LANG=en_US.UTF-8
 BD="${HOME}/.local/bin/bd"
 
 # --- Terminal device ---
-# Always read keyboard input from /dev/tty so it works under bash -c wrappers
-# and Zellij pane launches where stdin may not be the terminal.
-TTY=/dev/tty
+# In Zellij panes launched via `bash -c "..."`, /dev/tty may not point to the
+# pane's terminal. Zellij connects the pane terminal to the subprocess's stdin,
+# so we read keyboard input from stdin (fd 0) and apply stty settings there.
+# This matches the approach used by watch-deploys.sh which works in Zellij.
 
 # --- ANSI colors ---
 RST=$'\033[0m'
@@ -49,14 +50,14 @@ get_term_size() {
 enter_tui() {
   tput smcup 2>/dev/null        # alternate screen buffer
   tput civis 2>/dev/null        # hide cursor
-  stty -echo -icanon < "$TTY" 2>/dev/null
+  stty -echo -icanon 2>/dev/null
   printf '\033[?25l'            # belt-and-suspenders cursor hide
 }
 
 exit_tui() {
   tput cnorm 2>/dev/null        # show cursor
   tput rmcup 2>/dev/null        # restore main screen
-  stty echo icanon < "$TTY" 2>/dev/null
+  stty echo icanon 2>/dev/null
   printf '\033[?25h'
   # kill background jobs
   kill $(jobs -p) 2>/dev/null
@@ -380,16 +381,16 @@ while true; do
     render
   fi
 
-  # Read a single character with timeout from /dev/tty
-  if ! read -rsn1 -t 0.2 key < "$TTY" 2>/dev/null; then
+  # Read a single character with timeout from stdin
+  if ! read -rsn1 -t 0.2 key 2>/dev/null; then
     continue
   fi
 
   # Handle escape sequences (arrows)
   if [[ "$key" == $'\x1b' ]]; then
-    read -rsn1 -t 0.05 seq1 < "$TTY" 2>/dev/null
+    read -rsn1 -t 0.05 seq1 2>/dev/null
     if [[ "$seq1" == "[" ]]; then
-      read -rsn1 -t 0.05 seq2 < "$TTY" 2>/dev/null
+      read -rsn1 -t 0.05 seq2 2>/dev/null
       case "$seq2" in
         A) key="UP" ;;
         B) key="DOWN" ;;
