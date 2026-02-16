@@ -37,4 +37,5 @@ bd sync               # Sync with git
 - NEVER stop before pushing - that leaves work stranded locally
 - NEVER say "ready to push when you are" - YOU must push
 - If push fails, resolve and retry until it succeeds
+- **Bump plugin version** on every commit that changes plugin files. Update BOTH `plugins/claude-multiagent/.claude-plugin/plugin.json` AND `.claude-plugin/marketplace.json` (keep versions in sync). Use semver: patch for fixes, minor for features, major for breaking changes. Without a version bump, `/plugin` update won't pick up changes.
 
