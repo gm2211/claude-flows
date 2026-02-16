@@ -8,8 +8,9 @@
 export LC_ALL=en_US.UTF-8
 export LANG=en_US.UTF-8
 
-# Hide cursor; restore on exit
-trap 'tput cnorm 2>/dev/null; exit' INT TERM EXIT
+# Enter alternate screen buffer (like vim/htop); hide cursor; restore on exit
+tput smcup 2>/dev/null
+trap 'tput cnorm 2>/dev/null; tput rmcup 2>/dev/null; exit' INT TERM EXIT
 tput civis 2>/dev/null
 
 STATUS_DIR=".agent-status.d"
@@ -212,15 +213,9 @@ render_table() {
   local header
   header=$'Agent\tTicket(s)\tDuration\tSummary\tLast Action'
 
-  # Determine columns to hide at medium width
   # Columns: 0=Agent, 1=Ticket(s), 2=Duration, 3=Summary, 4=Last Action
   local -a visible_cols=(0 1 2 3 4)
   local -a col_headers=("Agent" "Ticket(s)" "Duration" "Summary" "Last Action")
-
-  # At medium width (<80), hide Ticket(s) column
-  if [ "$term_width" -lt 80 ]; then
-    visible_cols=(0 2 3 4)
-  fi
 
   # Process data rows
   local -a processed_rows
@@ -479,17 +474,7 @@ render_cards() {
   done
 }
 
-FIRST_RENDER=true
-
 render_screen() {
-  if $FIRST_RENDER; then
-    clear
-    FIRST_RENDER=false
-  else
-    tput cup 0 0 2>/dev/null
-    tput ed 2>/dev/null
-  fi
-
   local term_width
   term_width=$(tput cols 2>/dev/null || printf '80')
 
@@ -506,19 +491,35 @@ render_screen() {
     [[ -n "$line" ]] && agent_lines+=("$line")
   done < <(collect_agents)
 
-  printf 'Agent Status\n\n'
+  # Build all output into a buffer
+  local buf=""
+  buf+="Agent Status"$'\n'$'\n'
 
   if [ "$agents_source" = "none" ] || [ "$agents_source" = "dir_empty" ]; then
-    printf '  No agents running.\n'
+    buf+="  No agents running."$'\n'
   elif [ ${#agent_lines[@]} -eq 0 ]; then
-    printf '  No agents running.\n'
+    buf+="  No agents running."$'\n'
   elif [ "$term_width" -lt 60 ]; then
-    render_cards "${agent_lines[@]}"
+    buf+="$(render_cards "${agent_lines[@]}")"$'\n'
   else
-    render_table "${agent_lines[@]}"
+    buf+="$(render_table "${agent_lines[@]}")"$'\n'
   fi
 
-  printf '\nUpdated %s\n' "$(date '+%H:%M:%S')"
+  buf+=$'\n'"Updated $(date '+%H:%M:%S')"$'\n'
+
+  # Pad each line to terminal width to overwrite stale content, then write all at once
+  local padded=""
+  local pad_fmt="%-${term_width}s"
+  while IFS= read -r out_line; do
+    printf -v padded_line "$pad_fmt" "$out_line"
+    padded+="${padded_line}"$'\n'
+  done <<< "$buf"
+
+  # Position cursor at top-left, write buffer in one shot, then clear below
+  tput cup 0 0 2>/dev/null
+  printf '%s' "$padded"
+  tput el 2>/dev/null
+  tput ed 2>/dev/null
 }
 
 # Initial render
