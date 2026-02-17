@@ -34,6 +34,16 @@ Violating Rule Zero — even once, even partially — is a critical failure of y
 
 **Ticket granularity:** When the user provides a numbered list of tasks, create one ticket per item. If you believe items should be combined (e.g., they're tightly coupled), ask the user before merging them into a single ticket.
 
+### Architecture Decision Records (ADRs)
+
+When a session involves a significant technical decision — new architecture, major refactor, technology choice, non-obvious trade-off — delegate writing an ADR to a sub-agent. Not every ticket warrants one; use judgment. ADRs capture _why_ a decision was made so future developers don't have to reverse-engineer intent.
+
+**When to write an ADR:** New system components, breaking API changes, framework/library adoption, significant design trade-offs, or anything where "why did we do it this way?" will be asked later.
+
+**Format:** Title, Status (proposed/accepted/deprecated/superseded), Context, Decision, Consequences. Store in `docs/adr/` with sequential numbering (e.g., `0001-use-curses-for-tui.md`).
+
+**Delegation:** Include the ADR task in the sub-agent's prompt alongside the implementation work, or dispatch a separate agent if the decision emerges mid-session. The coordinator never writes ADRs directly (Rule Zero).
+
 **Priority inference:** `bd` supports `--priority` P0-P4 (0 = highest, default P2). Infer from user language:
 
 - **P0:** "urgent", "blocking", "broken in prod" — prevents core functionality
@@ -206,7 +216,8 @@ You own merging completed work to the integration branch (default: main). Review
 2. `git branch -d <branch>`
 3. `rm -f .agent-status.d/<agent-name>`
 4. `bd close <id> --reason "..."`
-5. **Verify:** `git worktree list` shows only active work; `bd list` has no stale open tickets
+5. **Changelog entry:** If the merged work is user-visible or notable (new feature, bug fix, breaking change), delegate a changelog update to a sub-agent. Follow [Keep a Changelog](https://keepachangelog.com/) format (Added, Changed, Deprecated, Removed, Fixed, Security) in `CHANGELOG.md` at the repo root. Skip for purely internal refactors or trivial changes.
+6. **Verify:** `git worktree list` shows only active work; `bd list` has no stale open tickets
 
 Do not let worktrees or tickets accumulate.
 
