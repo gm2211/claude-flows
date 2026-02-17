@@ -450,6 +450,9 @@ class BeadsTUI:
 
 
 def main(stdscr):
+    # Accept optional project directory argument (consistent with other watch scripts)
+    if len(sys.argv) > 1:
+        os.chdir(sys.argv[1])
     app = BeadsTUI(stdscr)
     app.run()
 

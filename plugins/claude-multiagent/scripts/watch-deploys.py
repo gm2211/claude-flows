@@ -43,7 +43,7 @@ def _find_project_dir():
         pass
     return os.getcwd()
 
-PROJECT_DIR = _find_project_dir()
+PROJECT_DIR = sys.argv[1] if len(sys.argv) > 1 else _find_project_dir()
 CONFIG_FILE = os.path.join(PROJECT_DIR, ".deploy-watch.json")
 
 

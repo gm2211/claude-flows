@@ -183,7 +183,7 @@ fi
 if [[ "$has_beads" -eq 0 ]]; then
   # Create beads pane to the right of Claude. Focus moves to beads.
   zellij action new-pane --name "dashboard-beads" --close-on-exit --direction right \
-    -- bash -c "cd '${PROJECT_DIR}' && '${SCRIPT_DIR}/watch-beads.py'" 2>/dev/null || true
+    -- python3 "${SCRIPT_DIR}/watch-beads.py" "${PROJECT_DIR}" 2>/dev/null || true
 fi
 
 if [[ "$has_agents" -eq 0 ]]; then
@@ -203,7 +203,7 @@ if $deploy_pane_enabled && [[ "$has_deploys" -eq 0 ]]; then
   zellij action move-focus down 2>/dev/null || true
 
   zellij action new-pane --name "dashboard-deploys" --close-on-exit --direction down \
-    -- python3 "${SCRIPT_DIR}/watch-deploys.py" 2>/dev/null || true
+    -- python3 "${SCRIPT_DIR}/watch-deploys.py" "${PROJECT_DIR}" 2>/dev/null || true
 fi
 
 # Return focus to the original (left) pane where Claude runs

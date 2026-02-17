@@ -142,15 +142,11 @@ kill_tree() {
 # Kill processes running the dashboard watch scripts for THIS project.
 #
 # open-dashboard.sh creates panes with:
-#   bash -c "cd '${PROJECT_DIR}' && '${SCRIPT_DIR}/watch-*.sh'"
+#   python3 "${SCRIPT_DIR}/watch-*.py" "${PROJECT_DIR}"
 #
-# This spawns a process tree:
-#   1. bash -c "cd '/project' && '/path/to/watch-beads.py'"   (wrapper)
-#   2.   /bin/bash /path/to/watch-beads.py                    (child)
-#
-# The wrapper's cmdline contains PROJECT_DIR, but the child's does NOT.
-# We must kill the entire process tree — if we only kill the wrapper, the
-# child keeps running and the Zellij pane stays open.
+# Each process's cmdline contains PROJECT_DIR as an argument, so we can
+# match them directly.  We still kill the full process tree to handle any
+# child processes (e.g. fswatch spawned by watch-deploys.py).
 # ---------------------------------------------------------------------------
 
 WATCH_SCRIPTS=("watch-beads.py" "watch-agents.py" "watch-deploys.py")
