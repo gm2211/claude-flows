@@ -44,6 +44,26 @@ Violating Rule Zero — even once, even partially — is a critical failure of y
 
 When dispatching multiple tasks from a single user prompt, the order they listed items in often implies priority — first = most important. Dependencies in a plan also imply priority: upstream/blocking work should be higher priority than downstream work that depends on it.
 
+## New Projects — Plan-First Workflow
+
+When the user starts a session or requests work, check `bd list` before creating tickets. If there are **no existing beads** (empty list), strongly recommend creating a structured plan before diving into ad-hoc ticket creation.
+
+**Why:** Projects without a plan tend to accumulate disconnected, low-impact tickets. A brief upfront planning phase produces better-organized milestones and clearer priorities.
+
+**Workflow when `bd list` is empty:**
+
+1. **Detect:** Run `bd list`. If it returns no beads, proceed with the recommendation.
+2. **Recommend:** Tell the user that since this project has no existing work items, you strongly recommend creating a short plan first. Frame this as a recommendation — do not refuse to proceed if the user declines.
+3. **Draft:** If the user agrees, draft a concise plan covering:
+   - The goal / desired end state
+   - Key milestones (3–7 items, ordered by dependency and priority)
+   - Any known risks or open questions
+4. **Review:** Submit the plan to the user via `AskUserQuestion` for approval. Incorporate their feedback.
+5. **Break down:** Once approved, convert each milestone into a bd ticket (`bd create`), setting appropriate priorities (P0–P4) based on dependency order and importance.
+6. **Proceed:** Continue with normal dispatching — pick the highest-priority ticket and dispatch a sub-agent.
+
+**If the user declines the plan:** Respect their choice and proceed directly to ticket creation as usual. Do not re-prompt for planning in the same session.
+
 ## Sub-Agents
 
 Use **teams** (TeamCreate) so you can message agents mid-flight via SendMessage. This lets you course-correct, provide hints, or redirect without killing and losing context.
@@ -94,15 +114,19 @@ Include verbatim in every agent prompt, replacing `PROJECT_DIR` with the **absol
 >
 > When you finish your task, delete your status file: remove `PROJECT_DIR/.agent-status.d/<your-agent-name>`.
 
-### Status Manager Agent
+### Status Monitor Agent (CRITICAL — MUST be running at all times)
 
-Spawn a lightweight background manager agent at the start of each session (after the team is created). This agent acts as a fallback for detecting stuck agents that have stopped self-reporting. It is cheap because it only acts once per minute and only messages the coordinator when something is off.
+**This is a non-optional, critical component of every coordinator session.** The status monitor MUST be one of the very first things you set up — spawn it immediately after creating the team, before dispatching any work agents. If the monitor dies or times out, restart it immediately. A session without a running status monitor is considered **degraded** and you should treat it with the same urgency as a stuck agent.
+
+The monitor serves two essential functions:
+1. **Stuck-agent detection:** Identifies agents that have stopped self-reporting (stale status files).
+2. **Ralph-loop scheduling:** Detects open beads with no active agents and nudges the coordinator to schedule work, ensuring progress is never silently stalled.
 
 **Manager agent config:** model `haiku`, type: `general-purpose`, mode: `bypassPermissions`
 
 **Prompt template for the manager agent** (fill in `PROJECT_DIR` with the absolute path to the repo root before dispatching):
 
-> You are a status monitor agent. You check for stuck agents by reading files in a directory and comparing timestamps.
+> You are a status monitor agent. You are a critical, always-on component. You detect stuck agents AND ensure open work items get scheduled.
 >
 > **Important:** Use the Bash tool for ALL operations (reading files, getting timestamps, sleeping). Do NOT use Read, Write, Edit, or Glob tools. Only use Bash and SendMessage.
 >
@@ -121,12 +145,14 @@ Spawn a lightweight background manager agent at the start of each session (after
 >
 > ## Your Task
 >
-> Run the following Bash command. It is a single long-running command that loops forever and checks for stale agents every 60 seconds. Copy it exactly as shown — do not modify it.
+> Run the following Bash command. It is a single long-running command that loops forever, checks for stale agents, and detects unscheduled work every 60 seconds. Copy it exactly as shown — do not modify it.
 >
 > ```bash
 > STATUS_DIR="PROJECT_DIR/.agent-status.d"
+> BEADS_DIR="PROJECT_DIR/.beads"
 > while true; do
 >   NOW=$(date +%s)
+>   # --- Check for stale agents ---
 >   if [ -d "$STATUS_DIR" ] && [ "$(ls -A "$STATUS_DIR" 2>/dev/null)" ]; then
 >     for FILE in "$STATUS_DIR"/*; do
 >       [ -f "$FILE" ] || continue
@@ -143,6 +169,15 @@ Spawn a lightweight background manager agent at the start of each session (after
 >       fi
 >     done
 >   fi
+>   # --- Ralph loop: detect unscheduled open beads ---
+>   ACTIVE_AGENTS=0
+>   if [ -d "$STATUS_DIR" ] && [ "$(ls -A "$STATUS_DIR" 2>/dev/null)" ]; then
+>     ACTIVE_AGENTS=$(ls -1 "$STATUS_DIR" 2>/dev/null | wc -l | tr -d ' ')
+>   fi
+>   OPEN_BEADS=$(cd "PROJECT_DIR" && bd list --status open 2>/dev/null | grep -c '^' || echo 0)
+>   if [ "$OPEN_BEADS" -gt 0 ] && [ "$ACTIVE_AGENTS" -eq 0 ]; then
+>     echo "NUDGE: $OPEN_BEADS open bead(s) but no active agents — work may need scheduling"
+>   fi
 >   sleep 60
 > done
 > ```
@@ -152,6 +187,7 @@ Spawn a lightweight background manager agent at the start of each session (after
 > ## Responding to Output
 >
 > - If the Bash output contains any line starting with `STALE:`, send a message to the coordinator (team lead) using SendMessage with the exact text. Example message: "Agent worker-1 has not updated in 4 minutes — may be stuck (ticket: abc)"
+> - If the Bash output contains any line starting with `NUDGE:`, send a message to the coordinator using SendMessage with the exact text. Example message: "3 open bead(s) but no active agents — work may need scheduling". Send at most **one** NUDGE message per cycle.
 > - If the output contains only `WARN:` lines or no output at all, do NOT message anyone — just run the loop again.
 > - If the Bash command exits (timeout or error), run it again immediately.
 >
@@ -159,7 +195,8 @@ Spawn a lightweight background manager agent at the start of each session (after
 >
 > - Do NOT modify or delete any status files — you are read-only.
 > - Do NOT use Read, Write, Edit, or Glob tools. Only Bash and SendMessage.
-> - Only message the coordinator when you see `STALE:` output.
+> - Only message the coordinator when you see `STALE:` or `NUDGE:` output.
+> - Send at most one `NUDGE` per cycle — do not flood the coordinator.
 > - When you receive a shutdown message, approve it and exit immediately.
 
 ## Status Updates
