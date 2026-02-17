@@ -79,9 +79,13 @@ get_focused_tab_layout() {
   printf '%s' "$result"
 }
 
-# Check if a dashboard pane exists by its name attribute OR by its script args.
-# Panes are created with --name "dashboard-beads" etc., so checking the name=
-# attribute in the layout dump is more reliable than args alone.
+# Check if a dashboard pane exists by its name attribute OR by its script
+# appearing in command= or args lines.  Panes are created with
+# --name "dashboard-beads" etc., so checking the name= attribute in the layout
+# dump is the primary method.  As a fallback we also match the script basename
+# anywhere in command= or args lines, which catches panes created by older
+# plugin versions (without --name) running from any path (including the
+# plugin cache).
 has_dashboard_pane() {
   local layout="$1"
   local pane_name="$2"    # e.g. "dashboard-beads"
@@ -92,8 +96,14 @@ has_dashboard_pane() {
       echo 1
       return
     fi
-    # Match by script name in args (fallback for panes created without --name)
-    if [[ "$line" == *"args "* && "$line" == *"$script_name"* ]]; then
+    # Match by script basename in command= (e.g. command="/path/to/watch-beads.py")
+    if [[ "$line" == *"command="* && "$line" == *"$script_name"* ]]; then
+      echo 1
+      return
+    fi
+    # Match by script basename in args (any format: args "/path/watch-beads.py" ...)
+    # This catches panes created without --name from any path.
+    if [[ "$line" == *"args"* && "$line" == *"$script_name"* ]]; then
       echo 1
       return
     fi
@@ -149,7 +159,9 @@ for config_path in \
 done
 
 # --- Detect existing dashboard panes ---
-# Uses both pane name= attribute and script args for robust detection.
+# Uses pane name= attribute, command=, and args for robust detection.
+# This catches both new named panes and old unnamed panes from cached
+# plugin versions running watch-*.py from any path.
 has_beads=$(has_dashboard_pane "$focused_tab" "dashboard-beads" "watch-beads.py")
 has_agents=$(has_dashboard_pane "$focused_tab" "dashboard-agents" "watch-agents.py")
 has_deploys=$(has_dashboard_pane "$focused_tab" "dashboard-deploys" "watch-deploys.py")
