@@ -201,7 +201,7 @@ done
 # Uses pane name= attribute, command=, and args for robust detection.
 # This catches both new named panes and old unnamed panes from cached
 # plugin versions running watch-*.py from any path.
-has_beads=$(has_dashboard_pane "$focused_tab" "dashboard-beads" "watch-beads.py" "$PROJECT_DIR")
+has_beads=$(has_dashboard_pane "$focused_tab" "dashboard-beads" "beads_tui" "$PROJECT_DIR")
 has_agents=$(has_dashboard_pane "$focused_tab" "dashboard-agents" "watch-agents.py" "$PROJECT_DIR")
 has_deploys=$(has_dashboard_pane "$focused_tab" "dashboard-deploys" "watch-deploys.py" "$PROJECT_DIR")
 
@@ -241,8 +241,21 @@ DASH_ID=$(uuidgen | tr -d '-' | tr '[:upper:]' '[:lower:]' | head -c 8)
 
 if [[ "$has_beads" -eq 0 ]]; then
   # Create beads pane to the right of Claude. Focus moves to beads.
-  zellij action new-pane --name "dashboard-beads-${DASH_ID}" --close-on-exit --direction right \
-    -- python3 "${SCRIPT_DIR}/watch-beads.py" "${PROJECT_DIR}" "${DASH_ID}" 2>/dev/null || true
+  BEADS_TUI_DIR="${SCRIPT_DIR}/beads-tui"
+  BDT_ARGS=(--db-path "${PROJECT_DIR}/.beads/beads.db" --bd-path "$(command -v bd)")
+  if [[ -d "${BEADS_TUI_DIR}/beads_tui" ]]; then
+    # Bundled submodule — run as python module with PYTHONPATH
+    zellij action new-pane --name "dashboard-beads-${DASH_ID}" --close-on-exit --direction right \
+      -- env PYTHONPATH="${BEADS_TUI_DIR}" python3 -m beads_tui "${BDT_ARGS[@]}" 2>/dev/null || true
+  elif command -v bdt &>/dev/null; then
+    # System-installed bdt
+    zellij action new-pane --name "dashboard-beads-${DASH_ID}" --close-on-exit --direction right \
+      -- bdt "${BDT_ARGS[@]}" 2>/dev/null || true
+  else
+    # Neither available — show placeholder with install instructions
+    zellij action new-pane --name "dashboard-beads-${DASH_ID}" --close-on-exit --direction right \
+      -- bash -c 'echo ""; echo "  beads-tui (bdt) is not installed."; echo ""; echo "  Install it with:"; echo "    pipx install beads-tui"; echo ""; echo "  Press Enter to close this pane."; read' 2>/dev/null || true
+  fi
 fi
 
 # The remaining panes split the right column downward; launch them in parallel.

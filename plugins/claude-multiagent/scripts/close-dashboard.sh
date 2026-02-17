@@ -108,33 +108,33 @@ extract_dashboard_id_from_layout() {
 
 all_layout=$(get_all_tabs_layout 2>/dev/null) || all_layout=""
 
-# Find the DASH_ID associated with this project by looking at all watch
-# processes running for this PROJECT_DIR and extracting their DASH_ID arg.
-DASH_ID=""
-for script in "watch-beads.py" "watch-agents.py" "watch-deploys.py"; do
-  pids=$(pgrep -f "$script" 2>/dev/null || true)
-  for pid in $pids; do
-    cmdline=$(ps -p "$pid" -o args= 2>/dev/null || true)
-    # cmdline: python3 .../watch-beads.py /path/to/project <dash_id>
-    # Extract the DASH_ID by checking for an exact PROJECT_DIR match.
-    # Split the cmdline into words and compare the project dir argument exactly.
-    read -ra words <<< "$cmdline"
-    for i in "${!words[@]}"; do
-      if [[ "${words[$i]}" == "$PROJECT_DIR" ]]; then
-        # Next word after PROJECT_DIR is the DASH_ID
-        next_idx=$(( i + 1 ))
-        if [[ $next_idx -lt ${#words[@]} ]]; then
-          candidate="${words[$next_idx]}"
-          # DASH_ID is 8 hex chars
-          if [[ "$candidate" =~ ^[a-f0-9]{8}$ ]]; then
-            DASH_ID="$candidate"
-            break 3
+# Find the DASH_ID associated with this project.
+# Strategy 1: Extract from pane names in the layout (works for all named panes).
+DASH_ID=$(extract_dashboard_id_from_layout "$all_layout")
+
+# Strategy 2 (legacy fallback): Scan watch-*.py processes for the DASH_ID arg.
+if [[ -z "$DASH_ID" ]]; then
+  for script in "watch-beads.py" "watch-agents.py" "watch-deploys.py"; do
+    pids=$(pgrep -f "$script" 2>/dev/null || true)
+    for pid in $pids; do
+      cmdline=$(ps -p "$pid" -o args= 2>/dev/null || true)
+      # cmdline: python3 .../watch-beads.py /path/to/project <dash_id>
+      read -ra words <<< "$cmdline"
+      for i in "${!words[@]}"; do
+        if [[ "${words[$i]}" == "$PROJECT_DIR" ]]; then
+          next_idx=$(( i + 1 ))
+          if [[ $next_idx -lt ${#words[@]} ]]; then
+            candidate="${words[$next_idx]}"
+            if [[ "$candidate" =~ ^[a-f0-9]{8}$ ]]; then
+              DASH_ID="$candidate"
+              break 3
+            fi
           fi
         fi
-      fi
+      done
     done
   done
-done
+fi
 
 log "Dashboard ID derived from running processes: ${DASH_ID:-none}"
 
@@ -182,7 +182,7 @@ kill_tree() {
 # child processes (e.g. fswatch spawned by watch-deploys.py).
 # ---------------------------------------------------------------------------
 
-WATCH_SCRIPTS=("watch-beads.py" "watch-agents.py" "watch-deploys.py")
+WATCH_SCRIPTS=("bdt" "beads_tui" "watch-beads.py" "watch-agents.py" "watch-deploys.py")
 
 killed=0
 for script in "${WATCH_SCRIPTS[@]}"; do
@@ -208,29 +208,37 @@ for script in "${WATCH_SCRIPTS[@]}"; do
       continue
     fi
 
-    if [[ -n "$DASH_ID" ]]; then
-      # Tab-scoped: only kill processes with this dashboard ID
-      if [[ "$cmdline" == *"$DASH_ID"* ]]; then
-        log "Killing PID $pid ($script) — matched DASH_ID $DASH_ID"
-        log "  cmdline: $cmdline"
-        kill_tree "$pid" "$script"
-        (( killed++ )) || true
-        continue
-      fi
+    if [[ -n "$DASH_ID" && "$cmdline" == *"$DASH_ID"* ]]; then
+      # Tab-scoped: kill processes whose cmdline contains this dashboard ID
+      log "Killing PID $pid ($script) — matched DASH_ID $DASH_ID"
+      log "  cmdline: $cmdline"
+      kill_tree "$pid" "$script"
+      (( killed++ )) || true
+      continue
+    fi
+
+    # Match by PROJECT_DIR — used when DASH_ID is absent (legacy) or when
+    # the process doesn't embed DASH_ID in its cmdline (bdt uses --db-path).
+    if [[ -n "$DASH_ID" && "$script" != "bdt" && "$script" != "beads_tui" ]]; then
+      # For watch-*.py with a known DASH_ID, skip PROJECT_DIR fallback —
+      # DASH_ID should have matched above if this process belongs to us.
+      :
     else
-      # Legacy fallback: no dashboard ID, match by PROJECT_DIR.
-      # Use exact word-boundary matching to prevent a parent path like
-      # /Users/me/projects from matching /Users/me/projects/myapp.
-      # The cmdline format is: python3 /path/watch-*.py <PROJECT_DIR> [DASH_ID]
-      # so PROJECT_DIR appears as a space-separated argument.
       cmdline_exact_match=false
-      read -ra cmdline_words <<< "$cmdline"
-      for word in "${cmdline_words[@]}"; do
-        if [[ "$word" == "$PROJECT_DIR" ]]; then
+      if [[ "$script" == "bdt" || "$script" == "beads_tui" ]]; then
+        # Substring match: PROJECT_DIR appears inside --db-path value
+        if [[ "$cmdline" == *"$PROJECT_DIR"* ]]; then
           cmdline_exact_match=true
-          break
         fi
-      done
+      else
+        read -ra cmdline_words <<< "$cmdline"
+        for word in "${cmdline_words[@]}"; do
+          if [[ "$word" == "$PROJECT_DIR" ]]; then
+            cmdline_exact_match=true
+            break
+          fi
+        done
+      fi
 
       if $cmdline_exact_match; then
         log "Killing PID $pid ($script) — matched PROJECT_DIR (exact)"

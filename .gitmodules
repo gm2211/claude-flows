@@ -1,0 +1,3 @@
+[submodule "plugins/claude-multiagent/scripts/beads-tui"]
+	path = plugins/claude-multiagent/scripts/beads-tui
+	url = https://github.com/gm2211/beads-tui.git
