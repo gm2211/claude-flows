@@ -226,7 +226,7 @@ def main():
 
     if len(sys.argv) < 2:
         _log.error("No command given")
-        print("Usage: render.py <name|config|list>", file=sys.stderr)
+        print("Usage: renderdotcom.py <name|config|list>", file=sys.stderr)
         sys.exit(1)
 
     cmd = sys.argv[1]

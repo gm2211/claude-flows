@@ -258,8 +258,8 @@ When the deploy pane is unconfigured, check if a relevant MCP server is availabl
 3. **Write config programmatically:** Write `.deploy-watch.json` with the discovered service ID:
    ```json
    {
-     "provider": "render.py",
-     "render.py": {
+     "provider": "renderdotcom.py",
+     "renderdotcom.py": {
        "serviceId": "srv-xxxxxxxxxxxxx"
      }
    }
