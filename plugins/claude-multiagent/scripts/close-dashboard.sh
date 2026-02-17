@@ -194,6 +194,8 @@ for script in "${WATCH_SCRIPTS[@]}"; do
     if [[ -n "$DASH_ID" ]]; then
       # Tab-scoped: only kill processes with this dashboard ID
       if [[ "$cmdline" == *"$DASH_ID"* ]]; then
+        log "Killing PID $pid ($script) — matched DASH_ID $DASH_ID"
+        log "  cmdline: $cmdline"
         kill_tree "$pid" "$script"
         (( killed++ )) || true
         continue
@@ -201,6 +203,8 @@ for script in "${WATCH_SCRIPTS[@]}"; do
     else
       # Legacy fallback: no dashboard ID in layout, match by PROJECT_DIR
       if [[ "$cmdline" == *"$PROJECT_DIR"* ]]; then
+        log "Killing PID $pid ($script) — matched PROJECT_DIR"
+        log "  cmdline: $cmdline"
         kill_tree "$pid" "$script"
         (( killed++ )) || true
         continue
@@ -212,7 +216,8 @@ for script in "${WATCH_SCRIPTS[@]}"; do
       if [[ -n "$ppid" && "$ppid" != "1" ]]; then
         parent_cmdline=$(ps -p "$ppid" -o args= 2>/dev/null || true)
         if [[ "$parent_cmdline" == *"$PROJECT_DIR"* ]]; then
-          log "PID $pid ($script) matched via parent PID $ppid"
+          log "Killing PID $pid ($script) — matched via parent PID $ppid"
+          log "  cmdline: $cmdline"
           kill_tree "$pid" "$script"
           (( killed++ )) || true
           continue
