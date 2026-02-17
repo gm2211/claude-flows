@@ -3,7 +3,7 @@
 # processes that run inside them.  When a process exits, Zellij automatically
 # closes the pane.
 #
-# Called by the Stop and SessionEnd hooks when a Claude Code session ends.
+# Called by the SessionEnd hook when a Claude Code session exits.
 # Fails silently when not running inside Zellij.
 
 set -euo pipefail
@@ -36,20 +36,6 @@ fi
 log "Hook event: ${HOOK_EVENT:-unknown} (input length: ${#HOOK_INPUT})"
 log "Hook input: ${HOOK_INPUT}"
 
-# ---------------------------------------------------------------------------
-# Don't close panes when sub-agents stop — only the main session should.
-#
-# Primary check: the hook_event_name from stdin. Claude Code sends "Stop"
-# for the main session and "SubagentStop" for sub-agents.
-#
-# Fallback check: the working directory. Sub-agents using worktrees run
-# in .worktrees/ directories. This catches edge cases where stdin is empty.
-# ---------------------------------------------------------------------------
-if [[ "$HOOK_EVENT" == "SubagentStop" ]]; then
-  log "Skipping pane cleanup — SubagentStop event (sub-agent terminated)"
-  exit 0
-fi
-
 # If not inside Zellij, bail silently
 if [[ -z "${ZELLIJ:-}" ]]; then
   log "Not inside Zellij — exiting."
@@ -66,12 +52,6 @@ if git rev-parse --show-toplevel &>/dev/null; then
 fi
 
 log "Project directory: $PROJECT_DIR"
-
-# Fallback sub-agent check: worktree-based sub-agents run in .worktrees/
-if [[ "$PROJECT_DIR" == *".worktrees/"* ]]; then
-  log "Skipping pane cleanup — running in a worktree (sub-agent context)"
-  exit 0
-fi
 
 # ---------------------------------------------------------------------------
 # Check if there's still an active Claude pane in the focused tab.
@@ -227,7 +207,7 @@ done
 
 # Give processes a moment to handle SIGTERM and exit cleanly.
 # This ensures Zellij sees the process exit and can close the pane
-# before this script (and the Stop hook) finishes.
+# before this script (and the SessionEnd hook) finishes.
 if [[ $killed -gt 0 ]]; then
   sleep 0.5
 fi
