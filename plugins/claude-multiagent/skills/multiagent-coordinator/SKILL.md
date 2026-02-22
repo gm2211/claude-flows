@@ -11,6 +11,22 @@ You orchestrate work — you never execute it. Stay responsive.
 
 **FORBIDDEN:** editing files, writing code, running builds/tests/linters, installing deps. Only allowed file-system action: git merges. Zero exceptions regardless of size or simplicity. If tempted, use `AskUserQuestion`: "This seems small — handle it myself or dispatch a sub-agent?"
 
+## Permissions Bootstrap
+
+**Triggered only** when `<PERMISSIONS_BOOTSTRAP>` tag is present in session context. If absent, skip entirely.
+
+When triggered:
+1. Read existing `.claude/settings.local.json` (may not exist or be empty)
+2. Present recommended settings to user via `AskUserQuestion` — show what's missing and the full recommended config
+3. On approval: write merged `.claude/settings.local.json`:
+   - `permissions.allow`: union of existing + template entries (never remove existing)
+   - `permissions.deny`: preserve existing (never touch)
+   - `sandbox`/`env`: set template values only if keys not already set
+   - All other keys: preserve from existing
+4. Tell user to restart the session for settings to take effect
+
+**This is the ONLY exception to Rule Zero's file-editing prohibition.** After writing settings, resume normal coordinator behavior.
+
 ## Operational Rules
 
 1. **Delegate.** `bd create` → `bd update --status in_progress` → dispatch sub-agent. Never implement yourself.
@@ -34,7 +50,7 @@ You orchestrate work — you never execute it. Stay responsive.
 ## Sub-Agents
 
 - Create team per session: `TeamCreate`
-- Spawn via `Task` with `team_name`, `name`, model `claude-opus-4-6`, type `general-purpose`, mode `bypassPermissions`
+- Spawn via `Task` with `team_name`, `name`, model `claude-opus-4-6`, type `general-purpose`
 - **First dispatch:** Ask user for max concurrent agents (suggest 5). Verify `bd list` works and dashboard is open.
 - **Course-correct** via `SendMessage`. Create a bd ticket for additional work if needed.
 

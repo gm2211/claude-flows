@@ -53,14 +53,78 @@ fi
 # Export for open-dashboard.sh to use
 export BEADS_TUI_VENV
 
-# Read multiagent-coordinator skill content
-coordinator_content=$(cat "${PLUGIN_ROOT}/skills/multiagent-coordinator/SKILL.md" 2>&1 || echo "Error reading multiagent-coordinator skill")
-
 # Escape string for JSON embedding using jq (much faster than bash parameter substitution).
 escape_for_json() {
     jq -Rs . <<< "$1" | sed 's/^"//;s/"$//'
 }
 
+# --- Detect missing permissions in .claude/settings.local.json ---
+SETTINGS_FILE="${PWD}/.claude/settings.local.json"
+PERMISSIONS_MISSING=""
+
+if [[ ! -f "$SETTINGS_FILE" ]]; then
+  PERMISSIONS_MISSING="File ${SETTINGS_FILE} does not exist. All required settings are missing: sandbox.enabled, sandbox.autoAllowBashIfSandboxed, permissions.allow (Read, Edit, Write, Bash(bd:*), Bash(git:*)), env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS."
+else
+  _missing_parts=()
+
+  # Check sandbox.enabled
+  if ! jq -e '.sandbox.enabled == true' "$SETTINGS_FILE" &>/dev/null; then
+    _missing_parts+=("sandbox.enabled must be true")
+  fi
+
+  # Check sandbox.autoAllowBashIfSandboxed
+  if ! jq -e '.sandbox.autoAllowBashIfSandboxed == true' "$SETTINGS_FILE" &>/dev/null; then
+    _missing_parts+=("sandbox.autoAllowBashIfSandboxed must be true")
+  fi
+
+  # Check each required permissions.allow entry
+  for _perm in "Read" "Edit" "Write" 'Bash(bd:*)' 'Bash(git:*)'; do
+    if ! jq -e --arg p "$_perm" '.permissions.allow // [] | index($p) != null' "$SETTINGS_FILE" &>/dev/null; then
+      _missing_parts+=("permissions.allow missing \"${_perm}\"")
+    fi
+  done
+
+  # Check env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS
+  if ! jq -e '.env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS == "1"' "$SETTINGS_FILE" &>/dev/null; then
+    _missing_parts+=("env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS must be \"1\"")
+  fi
+
+  # Build human-readable summary
+  if [[ ${#_missing_parts[@]} -gt 0 ]]; then
+    PERMISSIONS_MISSING=$(printf '%s\n' "${_missing_parts[@]}")
+  fi
+fi
+
+# Build PERMISSIONS_BOOTSTRAP block for additionalContext if anything is missing
+PERMISSIONS_BOOTSTRAP=""
+if [[ -n "$PERMISSIONS_MISSING" ]]; then
+  _bootstrap_block="<PERMISSIONS_BOOTSTRAP>
+The following settings are missing or incorrect in ${SETTINGS_FILE}:
+
+${PERMISSIONS_MISSING}
+
+Recommended settings template (merge with any existing settings):
+
+{
+  \"permissions\": {
+    \"allow\": [\"Read\", \"Edit\", \"Write\", \"Bash(bd:*)\", \"Bash(git:*)\"]
+  },
+  \"sandbox\": {
+    \"enabled\": true,
+    \"autoAllowBashIfSandboxed\": true
+  },
+  \"env\": {
+    \"CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS\": \"1\"
+  }
+}
+
+Follow the Permissions Bootstrap procedure in your skill specification.
+</PERMISSIONS_BOOTSTRAP>"
+  PERMISSIONS_BOOTSTRAP="$(escape_for_json "$_bootstrap_block")\n"
+fi
+
+# Read multiagent-coordinator skill content
+coordinator_content=$(cat "${PLUGIN_ROOT}/skills/multiagent-coordinator/SKILL.md" 2>&1 || echo "Error reading multiagent-coordinator skill")
 coordinator_escaped=$(escape_for_json "$coordinator_content")
 
 # Open Zellij dashboard panes (shared script; captures output to avoid
@@ -80,7 +144,7 @@ cat <<EOF
 {
   "hookSpecificOutput": {
     "hookEventName": "SessionStart",
-    "additionalContext": "<EXTREMELY_IMPORTANT>\nYou are a COORDINATOR (claude-multiagent plugin). FORBIDDEN from editing files, writing code, running builds/tests/linters. Only git merges allowed. No exceptions. Dispatch sub-agents for all work. If task feels small, ask user via AskUserQuestion before doing it yourself.\n\nThe following is your complete behavioral specification. Every rule is mandatory.\n\n${coordinator_escaped}\n\n${dashboard_note_escaped}\n\nAcknowledge coordinator mode in your first response.\n</EXTREMELY_IMPORTANT>"
+    "additionalContext": "${PERMISSIONS_BOOTSTRAP}<EXTREMELY_IMPORTANT>\nYou are a COORDINATOR (claude-multiagent plugin). FORBIDDEN from editing files, writing code, running builds/tests/linters. Only git merges allowed. No exceptions. Dispatch sub-agents for all work. If task feels small, ask user via AskUserQuestion before doing it yourself.\n\nThe following is your complete behavioral specification. Every rule is mandatory.\n\n${coordinator_escaped}\n\n${dashboard_note_escaped}\n\nAcknowledge coordinator mode in your first response.\n</EXTREMELY_IMPORTANT>"
   }
 }
 EOF
