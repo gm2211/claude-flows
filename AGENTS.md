@@ -39,3 +39,11 @@ bd sync               # Sync with git
 - If push fails, resolve and retry until it succeeds
 - **Bump plugin version** on every commit that changes plugin files. Update BOTH `plugins/claude-multiagent/.claude-plugin/plugin.json` AND `.claude-plugin/marketplace.json` (keep versions in sync). Use semver: patch for fixes, minor for features, major for breaking changes. Without a version bump, `/plugin` update won't pick up changes.
 
+## Worktree Convention
+
+When the coordinator dispatches you with REPO_ROOT and FEATURE_BRANCH:
+1. `cd $REPO_ROOT`
+2. `git worktree add .worktrees/${FEATURE_BRANCH}--<your-task-slug> -b ${FEATURE_BRANCH}--<your-task-slug>`
+3. `cd .worktrees/${FEATURE_BRANCH}--<your-task-slug>`
+4. Do all work in this worktree
+5. Commit and push your branch when done

@@ -197,16 +197,31 @@ for config_path in \
   fi
 done
 
+# --- Check if worktree pane is disabled ---
+worktree_pane_enabled=true
+for config_path in \
+  "${PROJECT_DIR}/.claude/claude-multiagent.local.md" \
+  "${HOME}/.claude/claude-multiagent.local.md"; do
+  if [[ -f "$config_path" ]] && grep -q 'worktree_pane:[[:space:]]*disabled' "$config_path" 2>/dev/null; then
+    worktree_pane_enabled=false
+    break
+  fi
+done
+
 # --- Detect existing dashboard panes ---
 # Uses pane name= attribute, command=, and args for robust detection.
 # This catches both new named panes and old unnamed panes from cached
 # plugin versions running watch-*.py from any path.
 has_beads=$(has_dashboard_pane "$focused_tab" "dashboard-beads" "beads_tui" "$PROJECT_DIR")
 has_deploys=$(has_dashboard_pane "$focused_tab" "dashboard-deploys" "watch-deploys.py" "$PROJECT_DIR")
+has_worktree_nvim=$(has_dashboard_pane "$focused_tab" "dashboard-worktree-nvim" "worktree-nvim/init.lua" "$PROJECT_DIR")
 
 all_present=true
 [[ "$has_beads" -eq 0 ]] && all_present=false
 if $deploy_pane_enabled && [[ "$has_deploys" -eq 0 ]]; then
+  all_present=false
+fi
+if $worktree_pane_enabled && [[ "$has_worktree_nvim" -eq 0 ]]; then
   all_present=false
 fi
 
@@ -225,6 +240,8 @@ DASH_ID=$(uuidgen | tr -d '-' | tr '[:upper:]' '[:lower:]' | head -c 8)
 #   ┌──────────────┬────────────────┐
 #   │              │  watch-beads   │
 #   │   Claude     ├────────────────┤
+#   │              │  worktree-nvim │
+#   │              ├────────────────┤
 #   │              │  watch-deploys │
 #   └──────────────┴────────────────┘
 #
@@ -287,6 +304,23 @@ fi
   # created it in the foreground block above, so a right pane now exists
   # regardless of the original detection value.
   has_right_pane=1
+
+  if $worktree_pane_enabled && [[ "$has_worktree_nvim" -eq 0 ]]; then
+    NVIM_INIT="${SCRIPT_DIR}/worktree-nvim/init.lua"
+    if command -v nvim &>/dev/null && [[ -f "$NVIM_INIT" ]]; then
+      zellij action move-focus right 2>/dev/null || true
+      zellij action move-focus down 2>/dev/null || true
+      zellij action new-pane --name "dashboard-worktree-nvim-${DASH_ID}" --close-on-exit --direction down \
+        -- nvim -u "${NVIM_INIT}" --clean \
+           -c "cd ${PROJECT_DIR}" 2>/dev/null || true
+    else
+      # Placeholder with install instructions
+      zellij action move-focus right 2>/dev/null || true
+      zellij action move-focus down 2>/dev/null || true
+      zellij action new-pane --name "dashboard-worktree-nvim-${DASH_ID}" --close-on-exit --direction down \
+        -- bash -c 'echo ""; echo "  Worktree viewer requires neovim."; echo ""; echo "  Install: brew install neovim"; echo ""; echo "  Press Enter to close."; read' 2>/dev/null || true
+    fi
+  fi
 
   if $deploy_pane_enabled && [[ "$has_deploys" -eq 0 ]]; then
     if [[ "$has_right_pane" -eq 1 ]]; then

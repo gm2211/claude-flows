@@ -98,7 +98,7 @@ extract_dashboard_id_from_layout() {
   local layout="$1"
   local id=""
   while IFS= read -r line; do
-    if [[ "$line" =~ name=\"dashboard-(beads|deploys)-([a-f0-9]+)\" ]]; then
+    if [[ "$line" =~ name=\"dashboard-(beads|deploys|worktree-nvim)-([a-f0-9]+)\" ]]; then
       id="${BASH_REMATCH[2]}"
       break
     fi
@@ -182,7 +182,7 @@ kill_tree() {
 # child processes (e.g. fswatch spawned by watch-deploys.py).
 # ---------------------------------------------------------------------------
 
-WATCH_SCRIPTS=("bdt" "beads_tui" "watch-beads.py" "watch-deploys.py")
+WATCH_SCRIPTS=("bdt" "beads_tui" "watch-beads.py" "watch-deploys.py" "worktree-nvim/init.lua")
 
 killed=0
 for script in "${WATCH_SCRIPTS[@]}"; do

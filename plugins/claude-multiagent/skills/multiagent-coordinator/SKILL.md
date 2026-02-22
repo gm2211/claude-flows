@@ -54,18 +54,53 @@ When triggered:
 - **First dispatch:** Ask user for max concurrent agents (suggest 5). Verify `bd list` works and dashboard is open.
 - **Course-correct** via `SendMessage`. Create a bd ticket for additional work if needed.
 
-### Worktrees
+### Worktrees — Feature Isolation
 
-Never develop on `main` directly. Each feature gets a **principal worktree** with its own `.beads/`:
+**Never develop on `main` directly.** Every feature gets its own worktree.
 
-```bash
-bd worktree create .worktrees/<feature> --branch <feature>
-cd .worktrees/<feature> && bd init && git config beads.role maintainer
+#### On Session Start
+
+When `<WORKTREE_SETUP>` tag is present (you're on the default branch):
+1. Check for existing worktrees listed in the tag
+2. If existing worktrees found: present them via `AskUserQuestion` — "Resume an existing feature or start a new one?"
+3. If starting new: ask for a feature name via `AskUserQuestion`
+4. Create: `git worktree add .worktrees/<feature> -b <feature>`
+5. **Change working directory:** `cd <repo_root>/.worktrees/<feature>`
+6. Initialize beads: `bd init && git config beads.role maintainer`
+7. Verify: `pwd` confirms location
+
+When `<WORKTREE_STATE>` tag is present: you're already in a worktree. Proceed normally.
+
+#### Naming Convention
+
+All worktrees live in `.worktrees/` at the repo root:
+- **Feature (principal):** `.worktrees/<feature>/` — branch `<feature>`
+- **Sub-agent:** `.worktrees/<feature>--<task-slug>/` — branch `<feature>--<task-slug>`
+
+Example with two concurrent features:
+```
+.worktrees/
+├── add-auth/                    ← feature worktree (Claude session 1)
+├── add-auth--login-form/        ← sub-agent working on login
+├── add-auth--api-middleware/     ← sub-agent working on middleware
+├── fix-perf/                    ← feature worktree (Claude session 2)
+├── fix-perf--optimize-queries/  ← sub-agent working on DB
+└── fix-perf--add-caching/       ← sub-agent working on caching
 ```
 
-Sub-agents create nested worktrees from the principal: `bd worktree create .worktrees/<sub> --branch <sub>`
+`git worktree list` and `ls .worktrees/` both show a flat, sorted list grouped by feature prefix.
 
-Merge flow: sub-worktree → principal (coordinator merges) → `main` (when feature complete).
+#### Sub-Agent Worktree Dispatch
+
+When dispatching a sub-agent, include in the prompt:
+- `REPO_ROOT=<repo_root>` (absolute path to main repo)
+- `FEATURE_BRANCH=<feature>` (the feature this agent is working on)
+- Instruct the agent to create its worktree from repo root:
+  ```bash
+  cd <REPO_ROOT>
+  git worktree add .worktrees/<feature>--<task-slug> -b <feature>--<task-slug>
+  cd .worktrees/<feature>--<task-slug>
+  ```
 
 ### Agent Prompt Must Include
 
@@ -91,12 +126,18 @@ bd ticket ID, acceptance criteria, repo path, worktree conventions, test/build c
 ## Merging & Cleanup
 
 **Sub-agent → principal:**
-1. `bd worktree remove .worktrees/<sub>` (from principal)
-2. `git branch -d <sub>`
-3. `bd close <id> --reason "..."`
-4. Verify: `git worktree list` clean, `bd list` no stale tickets
+1. From principal worktree: `git merge <feature>--<task-slug>`
+2. `git worktree remove <REPO_ROOT>/.worktrees/<feature>--<task-slug>`
+3. `git branch -d <feature>--<task-slug>`
+4. `bd close <id> --reason "merged"`
+5. Verify: `git worktree list` clean, `bd list` no stale tickets
 
-**Principal → main:** Merge, `bd worktree remove`, `git branch -d`. Delegate changelog update for user-visible changes.
+**Principal → main:**
+1. `cd <REPO_ROOT>` (back to main repo)
+2. `git merge <feature>`
+3. `git worktree remove .worktrees/<feature>`
+4. `git branch -d <feature>`
+5. `git push`
 
 Do not let worktrees or tickets accumulate.
 
@@ -113,3 +154,5 @@ Git-backed issue tracker at `~/.local/bin/bd`. Run `bd --help` for commands. Set
 Zellij actions: ONLY `new-pane` and `move-focus`. NEVER `close-pane`, `close-tab`, `go-to-tab`.
 
 Deploy pane monitors deployment status. After push, check it before closing ticket. Config: `.deploy-watch.json`. Keys: `p`=configure, `r`=refresh. If MCP tools `mcp__render__*` available, auto-configure by discovering service ID. Disable: `deploy_pane: disabled` in `.claude/claude-multiagent.local.md`.
+
+Worktree pane shows code diffs via nvim+diffview. Keys: `<Space>d`=uncommitted diff, `<Space>m`=diff vs main, `<Space>w`=pick worktree, `<Space>h`=file history, `<Space>c`=close diffview. Disable: `worktree_pane: disabled` in `.claude/claude-multiagent.local.md`.
