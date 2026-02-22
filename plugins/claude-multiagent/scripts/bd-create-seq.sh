@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Wrapper around `bd create` that assigns sequential IDs (plug-17, plug-18, …).
+# Reads/increments a counter stored in bd config (custom.issue_counter).
+# All arguments are forwarded to `bd create`.
+#
+# Usage: bd-create-seq.sh --title "Fix bug" --type=bug --priority=1
+
+set -euo pipefail
+
+BD="$(command -v bd)"
+
+# Read current counter (default 0 if unset)
+counter=$("$BD" config get custom.issue_counter 2>/dev/null | grep -oE '[0-9]+' || echo 0)
+next=$(( counter + 1 ))
+
+# Reserve the counter immediately (atomic: if two scripts race, one gets a
+# duplicate --id error from bd and can retry)
+"$BD" config set custom.issue_counter "$next" >/dev/null
+
+# Create with explicit sequential ID
+"$BD" create --id "plug-${next}" "$@"

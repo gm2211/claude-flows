@@ -36,7 +36,12 @@ When triggered:
 
 ## On Every Feature/Bug Request
 
-1. `bd create --title "..." --body "..."` (one ticket per item; ask before combining)
+1. Create ticket with sequential ID:
+   ```bash
+   "${CLAUDE_PLUGIN_ROOT:-$HOME/.claude/plugins/claude-multiagent}/scripts/bd-create-seq.sh" \
+     --title "..." --description "..." --type=task --priority=2
+   ```
+   This assigns `plug-<N>` (sequential) instead of random hashes. Falls back to `bd create` if the wrapper is unavailable.
 2. `bd update <id> --status in_progress`
 3. Dispatch background sub-agent immediately
 4. If >10 tickets open, discuss priority with user
