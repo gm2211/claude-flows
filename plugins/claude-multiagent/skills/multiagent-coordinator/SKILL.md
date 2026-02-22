@@ -54,53 +54,71 @@ When triggered:
 - **First dispatch:** Ask user for max concurrent agents (suggest 5). Verify `bd list` works and dashboard is open.
 - **Course-correct** via `SendMessage`. Create a bd ticket for additional work if needed.
 
-### Worktrees — Feature Isolation
+### Worktrees — Epic Isolation
 
-**Never develop on `main` directly.** Every feature gets its own worktree.
+**Never develop on `main` directly.** The coordinator stays on `main` and manages epics from the repo root.
+
+#### Three-Tier Hierarchy
+
+```
+main (coordinator lives here, never leaves)
+├── .worktrees/<epic>/              ← epic worktree (long-lived feature branch)
+├── .worktrees/<epic>--<task>/      ← task worktree (sub-agent works here)
+└── .worktrees/<other-epic>/        ← another epic (possibly another coordinator)
+```
 
 #### On Session Start
 
 When `<WORKTREE_SETUP>` tag is present (you're on the default branch):
-1. Check for existing worktrees listed in the tag
-2. If existing worktrees found: present them via `AskUserQuestion` — "Resume an existing feature or start a new one?"
-3. If starting new: ask for a feature name via `AskUserQuestion`
-4. Create: `git worktree add .worktrees/<feature> -b <feature>`
-5. **Change working directory:** `cd <repo_root>/.worktrees/<feature>`
-6. Initialize beads: `bd init && git config beads.role maintainer`
-7. Verify: `pwd` confirms location
+1. Check for existing epic worktrees listed in the tag
+2. Cross-reference with `bd list` to find open epics
+3. If existing epics found: present them via `AskUserQuestion` — "Resume an existing epic or start a new one?"
+4. If starting new: ask for an epic name via `AskUserQuestion`
+5. Create epic: `git worktree add .worktrees/<epic> -b <epic>`
+6. Initialize beads in epic worktree: `git -C .worktrees/<epic> config beads.role maintainer`
+7. Create bd epic issue and break down into tasks
+8. **Stay on `main`** — do NOT cd into the epic worktree
 
-When `<WORKTREE_STATE>` tag is present: you're already in a worktree. Proceed normally.
+When `<WORKTREE_STATE>` tag is present: you're already in a worktree (likely a sub-agent). Proceed normally.
 
 #### Naming Convention
 
 All worktrees live in `.worktrees/` at the repo root:
-- **Feature (principal):** `.worktrees/<feature>/` — branch `<feature>`
-- **Sub-agent:** `.worktrees/<feature>--<task-slug>/` — branch `<feature>--<task-slug>`
+- **Epic:** `.worktrees/<epic>/` — branch `<epic>`
+- **Task:** `.worktrees/<epic>--<task-slug>/` — branch `<epic>--<task-slug>`
 
-Example with two concurrent features:
+The `--` delimiter groups tasks under their epic in sorted listings.
+
+Example:
 ```
 .worktrees/
-├── add-auth/                    ← feature worktree (Claude session 1)
-├── add-auth--login-form/        ← sub-agent working on login
-├── add-auth--api-middleware/     ← sub-agent working on middleware
-├── fix-perf/                    ← feature worktree (Claude session 2)
-├── fix-perf--optimize-queries/  ← sub-agent working on DB
-└── fix-perf--add-caching/       ← sub-agent working on caching
+├── add-auth/                    ← epic (coordinator session 1)
+├── add-auth--login-form/        ← task (sub-agent)
+├── add-auth--api-middleware/     ← task (sub-agent)
+├── fix-perf/                    ← epic (coordinator session 2)
+├── fix-perf--optimize-queries/  ← task (sub-agent)
+└── fix-perf--add-caching/       ← task (sub-agent)
 ```
-
-`git worktree list` and `ls .worktrees/` both show a flat, sorted list grouped by feature prefix.
 
 #### Sub-Agent Worktree Dispatch
 
 When dispatching a sub-agent, include in the prompt:
 - `REPO_ROOT=<repo_root>` (absolute path to main repo)
-- `FEATURE_BRANCH=<feature>` (the feature this agent is working on)
-- Instruct the agent to create its worktree from repo root:
+- `EPIC_BRANCH=<epic>` (the epic this task belongs to)
+- Instruct the agent to create its worktree:
   ```bash
   cd <REPO_ROOT>
-  git worktree add .worktrees/<feature>--<task-slug> -b <feature>--<task-slug>
-  cd .worktrees/<feature>--<task-slug>
+  git worktree add .worktrees/<epic>--<task-slug> -b <epic>--<task-slug>
+  cd .worktrees/<epic>--<task-slug>
   ```
+
+#### Multiple Coordinators
+
+Multiple coordinators on the same repo are safe without locking:
+- `git worktree add` is atomic — two coordinators cannot create the same epic worktree
+- bd ownership shows which epics are claimed
+- Merge targets are disjoint — each coordinator only merges into its own epics
+- No stale locks — worktrees + bd issues ARE the state
 
 ### Agent Prompt Must Include
 
@@ -125,19 +143,20 @@ bd ticket ID, acceptance criteria, repo path, worktree conventions, test/build c
 
 ## Merging & Cleanup
 
-**Sub-agent → principal:**
-1. From principal worktree: `git merge <feature>--<task-slug>`
-2. `git worktree remove <REPO_ROOT>/.worktrees/<feature>--<task-slug>`
-3. `git branch -d <feature>--<task-slug>`
-4. `bd close <id> --reason "merged"`
-5. Verify: `git worktree list` clean, `bd list` no stale tickets
+**Task → Epic (when sub-agent completes):**
+1. From main: `git -C .worktrees/<epic> merge <epic>--<task-slug>`
+2. `git worktree remove .worktrees/<epic>--<task-slug>`
+3. `git branch -d <epic>--<task-slug>`
+4. `bd close <task-id> --reason "merged into <epic>"`
 
-**Principal → main:**
-1. `cd <REPO_ROOT>` (back to main repo)
-2. `git merge <feature>`
-3. `git worktree remove .worktrees/<feature>`
-4. `git branch -d <feature>`
+**Epic → Main (when all tasks complete):**
+1. From main: `git merge <epic>`
+2. `git worktree remove .worktrees/<epic>`
+3. `git branch -d <epic>`
+4. `bd close <epic-id> --reason "shipped"`
 5. `git push`
+
+Epics are the unit of shipment. Only push when an epic merges to main.
 
 Do not let worktrees or tickets accumulate.
 

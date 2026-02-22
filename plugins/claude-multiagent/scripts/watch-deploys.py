@@ -4,7 +4,7 @@
 Replaces the bash watch-deploys.sh with a Python curses implementation.
 Uses only the standard library.
 
-Keys: p = provider config, r = refresh, q = quit, ? = help
+Keys: p = provider config, r = refresh, d = disable pane, q = quit, ? = help
 """
 
 import curses
@@ -433,7 +433,7 @@ class DeployWatchApp:
         else:
             status = f"Updated {ts}  |  "
 
-        footer = f"{status}[p]rovider  [r]efresh  [?]help  [q]uit"
+        footer = f"{status}[p]rovider  [r]efresh  [d]isable  [?]help  [q]uit"
         self.safe_addstr(footer_row, 0, footer, curses.A_DIM)
 
     def render_unconfigured(self, row):
@@ -617,6 +617,7 @@ class DeployWatchApp:
         shortcuts = [
             ("p", "Select/configure deployment provider"),
             ("r", "Force refresh deploy data"),
+            ("d", "Disable deploy pane for this project"),
             ("q", "Quit"),
             ("?", "Toggle this help"),
         ]
@@ -785,6 +786,42 @@ class DeployWatchApp:
         curses.halfdelay(20)
         return True
 
+    # --- Disable deploy pane ---
+
+    def disable_deploy_pane(self):
+        """Disable the deploy pane for this project and exit."""
+        config_path = os.path.join(PROJECT_DIR, ".claude", "claude-multiagent.local.md")
+        os.makedirs(os.path.dirname(config_path), exist_ok=True)
+
+        # Read existing content to avoid duplicates
+        existing = ""
+        try:
+            with open(config_path, "r") as f:
+                existing = f.read()
+        except FileNotFoundError:
+            pass
+
+        if "deploy_pane: disabled" not in existing:
+            with open(config_path, "a") as f:
+                if existing and not existing.endswith("\n"):
+                    f.write("\n")
+                f.write("deploy_pane: disabled\n")
+
+        # Show confirmation briefly before exiting
+        self.stdscr.erase()
+        self.safe_addstr(2, 2, "Deploy pane disabled for this project.", curses.A_BOLD | curses.color_pair(1))
+        self.safe_addstr(4, 2, "Re-enable: remove 'deploy_pane: disabled' from")
+        self.safe_addstr(5, 2, f"  {config_path}", curses.color_pair(4))
+        self.safe_addstr(7, 2, "Exiting in 3 seconds...", curses.A_DIM)
+        try:
+            self.stdscr.refresh()
+        except curses.error:
+            pass
+        time.sleep(3)
+
+        # Return False from run loop to exit, which closes the Zellij pane
+        raise SystemExit(0)
+
     # --- Input handling ---
 
     def handle_input(self, key):
@@ -844,6 +881,8 @@ class DeployWatchApp:
                 self.show_provider_menu = True
         elif ch in ("r", "R"):
             self.do_refresh()
+        elif ch in ("d", "D"):
+            self.disable_deploy_pane()
 
         return True
 

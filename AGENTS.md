@@ -41,9 +41,9 @@ bd sync               # Sync with git
 
 ## Worktree Convention
 
-When the coordinator dispatches you with REPO_ROOT and FEATURE_BRANCH:
+When the coordinator dispatches you with REPO_ROOT and EPIC_BRANCH:
 1. `cd $REPO_ROOT`
-2. `git worktree add .worktrees/${FEATURE_BRANCH}--<your-task-slug> -b ${FEATURE_BRANCH}--<your-task-slug>`
-3. `cd .worktrees/${FEATURE_BRANCH}--<your-task-slug>`
+2. `git worktree add .worktrees/${EPIC_BRANCH}--<your-task-slug> -b ${EPIC_BRANCH}--<your-task-slug>`
+3. `cd .worktrees/${EPIC_BRANCH}--<your-task-slug>`
 4. Do all work in this worktree
 5. Commit and push your branch when done

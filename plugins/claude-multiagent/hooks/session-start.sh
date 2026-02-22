@@ -136,9 +136,10 @@ if git rev-parse --is-inside-work-tree &>/dev/null; then
     # Already in a worktree — note it, no action needed
     WORKTREE_CONTEXT="<WORKTREE_STATE>in_worktree|branch=${CURRENT_BRANCH}|repo_root=${REPO_ROOT}</WORKTREE_STATE>"
   elif [[ "$CURRENT_BRANCH" == "$DEFAULT_BRANCH" || "$CURRENT_BRANCH" == "main" || "$CURRENT_BRANCH" == "master" ]]; then
-    # On default branch — list existing worktrees
-    EXISTING_WTS=$(ls -d .worktrees/*/ 2>/dev/null | sed 's|.worktrees/||;s|/||' | tr '\n' ',' | sed 's/,$//')
-    WORKTREE_CONTEXT="<WORKTREE_SETUP>on_default_branch|default=${DEFAULT_BRANCH}|existing_worktrees=${EXISTING_WTS}|repo_root=${REPO_ROOT}</WORKTREE_SETUP>"
+    # On default branch — list existing epic and task worktrees
+    EXISTING_EPICS=$(ls -d .worktrees/*/ 2>/dev/null | sed 's|.worktrees/||;s|/||' | grep -v -- '--' | tr '\n' ',' | sed 's/,$//')
+    EXISTING_TASKS=$(ls -d .worktrees/*/ 2>/dev/null | sed 's|.worktrees/||;s|/||' | grep -- '--' | tr '\n' ',' | sed 's/,$//')
+    WORKTREE_CONTEXT="<WORKTREE_SETUP>on_default_branch|default=${DEFAULT_BRANCH}|epics=${EXISTING_EPICS}|tasks=${EXISTING_TASKS}|repo_root=${REPO_ROOT}</WORKTREE_SETUP>"
   fi
 fi
 
