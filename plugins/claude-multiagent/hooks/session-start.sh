@@ -182,8 +182,9 @@ if [[ -n "$SEMVER_HOOK_CONTEXT" ]]; then
   SEMVER_HOOK_ESCAPED="$(escape_for_json "$SEMVER_HOOK_CONTEXT")\n"
 fi
 
-# Read multiagent-coordinator skill content
+# Read multiagent-coordinator skill content and resolve $PLUGIN_ROOT references
 coordinator_content=$(cat "${PLUGIN_ROOT}/skills/multiagent-coordinator/SKILL.md" 2>&1 || echo "Error reading multiagent-coordinator skill")
+coordinator_content="${coordinator_content//\$PLUGIN_ROOT/${PLUGIN_ROOT}}"
 coordinator_escaped=$(escape_for_json "$coordinator_content")
 
 # Open Zellij dashboard panes (shared script; captures output to avoid

@@ -92,6 +92,44 @@ get_focused_tab_layout() {
 # Zellij tab) from being mistakenly detected as belonging to this project when
 # get_focused_tab_layout() returns a superset of panes or stale versions
 # without the UUID mechanism are running.
+# Filter out pane blocks that contain "start_suspended true" from the layout.
+# Zellij saved layouts preserve these as stale artifacts; they are not live panes.
+strip_suspended_panes() {
+  local layout="$1"
+  local result=""
+  local pane_block=""
+  local in_pane=0
+  local depth=0
+
+  while IFS= read -r line; do
+    if [[ $in_pane -eq 0 ]]; then
+      if [[ "$line" =~ ^[[:space:]]*pane[[:space:]] && "$line" == *"{"* ]]; then
+        in_pane=1
+        depth=1
+        pane_block="$line"$'\n'
+      else
+        result+="$line"$'\n'
+      fi
+    else
+      pane_block+="$line"$'\n'
+      local opens="${line//[^\{]/}"
+      local closes="${line//[^\}]/}"
+      depth=$(( depth + ${#opens} - ${#closes} ))
+      if [[ $depth -le 0 ]]; then
+        # Pane block complete — keep it only if not suspended
+        if [[ "$pane_block" != *"start_suspended true"* ]]; then
+          result+="$pane_block"
+        fi
+        pane_block=""
+        in_pane=0
+        depth=0
+      fi
+    fi
+  done <<< "$layout"
+
+  printf '%s' "$result"
+}
+
 has_dashboard_pane() {
   local layout="$1"
   local pane_name="$2"    # e.g. "dashboard-beads"
@@ -175,6 +213,10 @@ fi
 git rev-parse --is-inside-work-tree &>/dev/null || exit 0
 
 focused_tab=$(get_focused_tab_layout) || exit 0
+
+# Strip Zellij saved-layout artifacts (start_suspended panes) so they don't
+# cause false-positive detections of existing dashboard panes.
+focused_tab=$(strip_suspended_panes "$focused_tab")
 
 # --- Multiple Claude sessions detection ---
 claude_count=$(count_claude_panes "$focused_tab" "$PROJECT_DIR")
