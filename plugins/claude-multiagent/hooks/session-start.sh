@@ -53,10 +53,23 @@ fi
 # Export for open-dashboard.sh to use
 export BEADS_TUI_VENV
 
-# Escape string for JSON embedding using jq (much faster than bash parameter substitution).
-escape_for_json() {
+# Escape string for JSON embedding.
+# Uses jq when available; falls back to pure-bash substitution.
+if command -v jq &>/dev/null; then
+  escape_for_json() {
     jq -Rs . <<< "$1" | sed 's/^"//;s/"$//'
-}
+  }
+else
+  escape_for_json() {
+    local s="$1"
+    s="${s//\\/\\\\}"
+    s="${s//\"/\\\"}"
+    s="${s//$'\n'/\\n}"
+    s="${s//$'\r'/\\r}"
+    s="${s//$'\t'/\\t}"
+    printf '%s' "$s"
+  }
+fi
 
 # --- Detect missing permissions in .claude/settings.local.json ---
 SETTINGS_FILE="${PWD}/.claude/settings.local.json"
@@ -64,7 +77,7 @@ PERMISSIONS_MISSING=""
 
 if [[ ! -f "$SETTINGS_FILE" ]]; then
   PERMISSIONS_MISSING="File ${SETTINGS_FILE} does not exist. All required settings are missing: sandbox.enabled, sandbox.autoAllowBashIfSandboxed, permissions.allow (Read, Edit, Write, Bash(bd:*), Bash(git:*)), env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS."
-else
+elif command -v jq &>/dev/null; then
   _missing_parts=()
 
   # Check sandbox.enabled
@@ -93,6 +106,9 @@ else
   if [[ ${#_missing_parts[@]} -gt 0 ]]; then
     PERMISSIONS_MISSING=$(printf '%s\n' "${_missing_parts[@]}")
   fi
+else
+  # jq not available — skip detailed permission checks, flag the dependency
+  PERMISSIONS_MISSING="jq is not installed. Install it (e.g. brew install jq) for automatic permission validation. Cannot verify settings in ${SETTINGS_FILE}."
 fi
 
 # Build PERMISSIONS_BOOTSTRAP block for additionalContext if anything is missing
@@ -137,8 +153,8 @@ if git rev-parse --is-inside-work-tree &>/dev/null; then
     WORKTREE_CONTEXT="<WORKTREE_STATE>in_worktree|branch=${CURRENT_BRANCH}|repo_root=${REPO_ROOT}</WORKTREE_STATE>"
   elif [[ "$CURRENT_BRANCH" == "$DEFAULT_BRANCH" || "$CURRENT_BRANCH" == "main" || "$CURRENT_BRANCH" == "master" ]]; then
     # On default branch — list existing epic and task worktrees
-    EXISTING_EPICS=$(ls -d .worktrees/*/ 2>/dev/null | sed 's|.worktrees/||;s|/||' | grep -v -- '--' | tr '\n' ',' | sed 's/,$//')
-    EXISTING_TASKS=$(ls -d .worktrees/*/ 2>/dev/null | sed 's|.worktrees/||;s|/||' | grep -- '--' | tr '\n' ',' | sed 's/,$//')
+    EXISTING_EPICS=$(ls -d .worktrees/*/ 2>/dev/null | sed 's|.worktrees/||;s|/||' | { grep -v -- '--' || true; } | tr '\n' ',' | sed 's/,$//') || true
+    EXISTING_TASKS=$(ls -d .worktrees/*/ 2>/dev/null | sed 's|.worktrees/||;s|/||' | { grep -- '--' || true; } | tr '\n' ',' | sed 's/,$//') || true
     WORKTREE_CONTEXT="<WORKTREE_SETUP>on_default_branch|default=${DEFAULT_BRANCH}|epics=${EXISTING_EPICS}|tasks=${EXISTING_TASKS}|repo_root=${REPO_ROOT}</WORKTREE_SETUP>"
   fi
 fi
