@@ -73,9 +73,9 @@ while read -r LOCAL_REF LOCAL_SHA REMOTE_REF REMOTE_SHA; do
         if [ "$OLD_VERSION" = "$NEW_VERSION" ] || [ -z "$NEW_VERSION" ]; then
             ERRORS="${ERRORS}\n  - Plugin '$PLUGIN_NAME': files changed but version not bumped (still $OLD_VERSION)"
             ERRORS="${ERRORS}\n    Changed files:"
-            echo "$CHANGED" | while read -r F; do
+            while read -r F; do
                 ERRORS="${ERRORS}\n      $F"
-            done
+            done <<< "$CHANGED"
             continue
         fi
 

@@ -164,40 +164,6 @@ if [[ -n "$WORKTREE_CONTEXT" ]]; then
   WORKTREE_CONTEXT_ESCAPED="$(escape_for_json "$WORKTREE_CONTEXT")\n"
 fi
 
-# --- Detect pre-push semver hook status ---
-SEMVER_HOOK_STATUS=""
-_prepush_hook="${PWD}/.git/hooks/pre-push"
-_semver_script="${PLUGIN_ROOT}/hooks/pre-push-semver.sh"
-if [[ -f "$_semver_script" ]]; then
-  if [[ -L "$_prepush_hook" ]] && [[ "$(readlink "$_prepush_hook")" == *"pre-push-semver.sh"* ]]; then
-    SEMVER_HOOK_STATUS="installed"
-  else
-    # Check if user previously declined
-    _declined=false
-    for config_path in \
-      "${PWD}/.claude/claude-multiagent.local.md" \
-      "${HOME}/.claude/claude-multiagent.local.md"; do
-      if [[ -f "$config_path" ]] && grep -q 'semver_hook:[[:space:]]*declined' "$config_path" 2>/dev/null; then
-        _declined=true
-        break
-      fi
-    done
-    if ! $_declined; then
-      SEMVER_HOOK_STATUS="available"
-    fi
-  fi
-fi
-
-SEMVER_HOOK_CONTEXT=""
-if [[ "$SEMVER_HOOK_STATUS" == "available" ]]; then
-  SEMVER_HOOK_CONTEXT="<SEMVER_HOOK_AVAILABLE>A pre-push git hook for semantic version validation is available but not installed. Offer to install via AskUserQuestion on first user interaction. If approved: ln -sf ${_semver_script} ${_prepush_hook}. If declined: write 'semver_hook: declined' to .claude/claude-multiagent.local.md.</SEMVER_HOOK_AVAILABLE>"
-fi
-
-SEMVER_HOOK_ESCAPED=""
-if [[ -n "$SEMVER_HOOK_CONTEXT" ]]; then
-  SEMVER_HOOK_ESCAPED="$(escape_for_json "$SEMVER_HOOK_CONTEXT")\n"
-fi
-
 # Read multiagent-coordinator skill content and resolve $PLUGIN_ROOT references
 coordinator_content=$(cat "${PLUGIN_ROOT}/skills/multiagent-coordinator/SKILL.md" 2>&1 || echo "Error reading multiagent-coordinator skill")
 coordinator_content="${coordinator_content//\$PLUGIN_ROOT/${PLUGIN_ROOT}}"
@@ -220,7 +186,7 @@ cat <<EOF
 {
   "hookSpecificOutput": {
     "hookEventName": "SessionStart",
-    "additionalContext": "${PERMISSIONS_BOOTSTRAP}${WORKTREE_CONTEXT_ESCAPED}${SEMVER_HOOK_ESCAPED}<EXTREMELY_IMPORTANT>\nYou are a COORDINATOR (claude-multiagent plugin). FORBIDDEN from editing files, writing code, running builds/tests/linters. Only git merges allowed. No exceptions. Dispatch sub-agents for all work. If task feels small, ask user via AskUserQuestion before doing it yourself.\n\nThe following is your complete behavioral specification. Every rule is mandatory.\n\n${coordinator_escaped}\n\n${dashboard_note_escaped}\n\nAcknowledge coordinator mode in your first response.\n</EXTREMELY_IMPORTANT>"
+    "additionalContext": "${PERMISSIONS_BOOTSTRAP}${WORKTREE_CONTEXT_ESCAPED}<EXTREMELY_IMPORTANT>\nYou are a COORDINATOR (claude-multiagent plugin). FORBIDDEN from editing files, writing code, running builds/tests/linters. Only git merges allowed. No exceptions. Dispatch sub-agents for all work. If task feels small, ask user via AskUserQuestion before doing it yourself.\n\nThe following is your complete behavioral specification. Every rule is mandatory.\n\n${coordinator_escaped}\n\n${dashboard_note_escaped}\n\nAcknowledge coordinator mode in your first response.\n</EXTREMELY_IMPORTANT>"
   }
 }
 EOF

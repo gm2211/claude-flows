@@ -180,7 +180,3 @@ Zellij actions: ONLY `new-pane` and `move-focus`. NEVER `close-pane`, `close-tab
 Deploy pane monitors deployment status. After push, check it before closing ticket. Config: `.deploy-watch.json`. Keys: `p`=configure, `r`=refresh. If MCP tools `mcp__render__*` available, auto-configure by discovering service ID. Disable: `deploy_pane: disabled` in `.claude/claude-multiagent.local.md`.
 
 Worktree pane shows code diffs via nvim+diffview. Keys: `<Space>d`=uncommitted diff, `<Space>m`=diff vs main, `<Space>w`=pick worktree, `<Space>h`=file history, `<Space>c`=close diffview. Disable: `worktree_pane: disabled` in `.claude/claude-multiagent.local.md`.
-
-## Semver Hook
-
-When `<SEMVER_HOOK_AVAILABLE>` tag is present, offer to install the pre-push semver validation hook on first user interaction via `AskUserQuestion`. The hook validates that plugin version files are bumped when plugin code changes. If user declines, write `semver_hook: declined` to `.claude/claude-multiagent.local.md` to avoid re-prompting.
