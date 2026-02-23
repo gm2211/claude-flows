@@ -1,0 +1,10 @@
+[project]
+name = "watch-dashboard"
+version = "0.1.0"
+description = "Textual TUI dashboard for deploy watch and GitHub Actions"
+requires-python = ">=3.10"
+dependencies = ["textual>=0.80.0", "rich>=13.0.0"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

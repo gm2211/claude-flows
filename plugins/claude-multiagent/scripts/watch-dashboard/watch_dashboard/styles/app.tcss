@@ -1,0 +1,259 @@
+/* =============================================================================
+   Watch Dashboard — Dark Theme (Catppuccin-inspired, matching beads-tui)
+   ============================================================================= */
+
+Screen {
+    background: #1e1e2e;
+    color: #cdd6f4;
+}
+
+/* ---------------------------------------------------------------------------
+   Header / Footer
+   --------------------------------------------------------------------------- */
+
+Header {
+    background: #181825;
+    color: #cdd6f4;
+    dock: top;
+    text-style: bold;
+}
+
+Footer {
+    background: #181825;
+    color: #6c7086;
+    dock: bottom;
+}
+
+FooterKey {
+    background: #181825;
+    color: #6c7086;
+}
+
+FooterKey:hover {
+    background: #333350;
+    color: #cdd6f4;
+}
+
+FooterKey > .footer-key--key {
+    background: #333350;
+    color: #89b4fa;
+    text-style: bold;
+}
+
+FooterKey:hover > .footer-key--key {
+    background: #44447a;
+    color: #cdd6f4;
+}
+
+/* ---------------------------------------------------------------------------
+   Tabs
+   --------------------------------------------------------------------------- */
+
+Tabs {
+    background: #181825;
+    color: #6c7086;
+}
+
+Tab {
+    background: #181825;
+    color: #6c7086;
+    padding: 0 2;
+}
+
+Tab:hover {
+    background: #282840;
+    color: #cdd6f4;
+}
+
+Tab.-active {
+    background: #1e1e2e;
+    color: #89b4fa;
+    text-style: bold;
+}
+
+Underline > .underline--bar {
+    color: #89b4fa;
+}
+
+TabbedContent ContentSwitcher {
+    height: 1fr;
+}
+
+TabPane {
+    padding: 0;
+}
+
+/* ---------------------------------------------------------------------------
+   DataTable
+   --------------------------------------------------------------------------- */
+
+DataTable {
+    width: 100%;
+    height: 1fr;
+    background: #1e1e2e;
+    color: #cdd6f4;
+    overflow-x: hidden;
+    scrollbar-color: #44447a;
+    scrollbar-color-hover: #89b4fa;
+    scrollbar-color-active: #b4befe;
+    scrollbar-background: #1e1e2e;
+}
+
+DataTable > .datatable--header {
+    background: #181825;
+    color: #89b4fa;
+    text-style: bold;
+}
+
+DataTable > .datatable--cursor {
+    background: #333350;
+    color: #cdd6f4;
+    text-style: bold;
+}
+
+DataTable > .datatable--hover {
+    background: #282840;
+}
+
+DataTable > .datatable--even-row {
+    background: #1e1e2e;
+}
+
+DataTable > .datatable--odd-row {
+    background: #282840;
+}
+
+DataTable:focus > .datatable--cursor {
+    background: #44447a;
+    color: #cdd6f4;
+    text-style: bold;
+}
+
+/* ---------------------------------------------------------------------------
+   Status line at bottom of each tab
+   --------------------------------------------------------------------------- */
+
+#deploy-status, #actions-status {
+    width: 100%;
+    height: 1;
+    background: #181825;
+    color: #6c7086;
+    padding: 0 1;
+    dock: bottom;
+}
+
+#deploy-service-url {
+    width: 100%;
+    height: auto;
+    max-height: 1;
+    padding: 0 1;
+    color: #89b4fa;
+}
+
+/* ---------------------------------------------------------------------------
+   Modal styling
+   --------------------------------------------------------------------------- */
+
+ModalScreen {
+    background: rgba(0, 0, 0, 0.7);
+    align: center middle;
+}
+
+/* ---------------------------------------------------------------------------
+   Input / Button styling
+   --------------------------------------------------------------------------- */
+
+Input {
+    background: #282840;
+    color: #cdd6f4;
+    border: solid #44447a;
+    padding: 0 1;
+}
+
+Input:focus {
+    border: solid #89b4fa;
+    background: #333350;
+}
+
+Button {
+    background: #44447a;
+    color: #cdd6f4;
+    border: none;
+    padding: 0 2;
+    margin: 1 1 0 0;
+    min-width: 12;
+    text-align: center;
+}
+
+Button:hover {
+    background: #89b4fa;
+    color: #1e1e2e;
+    text-style: bold;
+}
+
+Button:focus {
+    background: #89b4fa;
+    color: #1e1e2e;
+    text-style: bold;
+}
+
+Button.-primary {
+    background: #89b4fa;
+    color: #1e1e2e;
+    text-style: bold;
+}
+
+Button.-primary:hover {
+    background: #b4befe;
+    color: #1e1e2e;
+}
+
+/* ---------------------------------------------------------------------------
+   OptionList
+   --------------------------------------------------------------------------- */
+
+OptionList {
+    background: #282840;
+    color: #cdd6f4;
+    border: solid #44447a;
+    scrollbar-color: #44447a;
+}
+
+OptionList > .option-list--option-highlighted {
+    background: #333350;
+    color: #cdd6f4;
+}
+
+OptionList:focus > .option-list--option-highlighted {
+    background: #44447a;
+    color: #cdd6f4;
+    text-style: bold;
+}
+
+/* ---------------------------------------------------------------------------
+   Notifications
+   --------------------------------------------------------------------------- */
+
+.notification {
+    width: auto;
+    max-width: 60;
+    height: auto;
+    padding: 1 2;
+    margin: 1;
+    background: #282840;
+    color: #cdd6f4;
+    border: solid #44447a;
+}
+
+/* ---------------------------------------------------------------------------
+   Scrollbar global
+   --------------------------------------------------------------------------- */
+
+* {
+    scrollbar-color: #44447a;
+    scrollbar-color-hover: #89b4fa;
+    scrollbar-color-active: #b4befe;
+    scrollbar-background: #1e1e2e;
+    scrollbar-background-hover: #1e1e2e;
+    scrollbar-background-active: #1e1e2e;
+}

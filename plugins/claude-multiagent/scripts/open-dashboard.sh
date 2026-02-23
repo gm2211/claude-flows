@@ -244,15 +244,18 @@ done
 # This catches both new named panes and old unnamed panes from cached
 # plugin versions running watch-*.py from any path.
 has_beads=$(has_dashboard_pane "$focused_tab" "dashboard-beads" "beads_tui" "$PROJECT_DIR")
+has_dashboard=$(has_dashboard_pane "$focused_tab" "dashboard-watch" "watch_dashboard" "$PROJECT_DIR")
+# Legacy detection for old separate panes (watch-deploys.py / watch-gh-actions.py)
 has_deploys=$(has_dashboard_pane "$focused_tab" "dashboard-deploys" "watch-deploys.py" "$PROJECT_DIR")
 has_ghactions=$(has_dashboard_pane "$focused_tab" "dashboard-ghactions" "watch-gh-actions.py" "$PROJECT_DIR")
+# Treat legacy panes as equivalent to the new unified dashboard
+if [[ "$has_deploys" -eq 1 ]] || [[ "$has_ghactions" -eq 1 ]]; then
+  has_dashboard=1
+fi
 
 all_present=true
 [[ "$has_beads" -eq 0 ]] && all_present=false
-if $deploy_pane_enabled && [[ "$has_deploys" -eq 0 ]]; then
-  all_present=false
-fi
-if $deploy_pane_enabled && [[ "$has_ghactions" -eq 0 ]]; then
+if $deploy_pane_enabled && [[ "$has_dashboard" -eq 0 ]]; then
   all_present=false
 fi
 
@@ -269,16 +272,12 @@ DASH_ID=$(uuidgen | tr -d '-' | tr '[:upper:]' '[:lower:]' | head -c 8)
 #
 #   ┌──────────────────┬──────────────────┐
 #   │                  │   beads-tui      │
-#   │     Claude       ├────────┬─────────┤
-#   │                  │ deploy │ gh-runs │
-#   └──────────────────┴────────┴─────────┘
+#   │     Claude       ├──────────────────┤
+#   │                  │  watch-dashboard │
+#   └──────────────────┴──────────────────┘
 #
 # new-pane moves focus to the newly created pane, so we track where
 # focus ends up after each step.
-
-# Launch panes in parallel. Each pane creation block runs in a background
-# subshell with a small stagger to preserve spatial layout ordering (each
-# new-pane is placed relative to the currently focused pane).
 
 if [[ "$has_beads" -eq 0 ]]; then
   # Create beads pane to the right of Claude. Focus moves to beads.
@@ -322,38 +321,45 @@ if [[ "$has_beads" -eq 0 ]]; then
   fi
 fi
 
-# The remaining panes split the right column downward; launch them in parallel.
-# If beads already occupies the right column, agents/deploys split it downward.
-# If beads is absent, the FIRST new pane must create the right column itself.
+# Launch watch-dashboard pane (unified deploys + gh-actions) below beads.
+# If beads already occupies the right column, the dashboard splits downward.
+# If beads is absent, the dashboard creates the right column itself.
 {
-  # Track whether a right-side pane exists.  If beads was missing we just
-  # created it in the foreground block above, so a right pane now exists
-  # regardless of the original detection value.
-  has_right_pane=1
-
-  if $deploy_pane_enabled && [[ "$has_deploys" -eq 0 ]]; then
-    if [[ "$has_right_pane" -eq 1 ]]; then
-      # Right column exists — move to the bottom-most pane and split downward.
-      zellij action move-focus right 2>/dev/null || true
-      zellij action move-focus down 2>/dev/null || true
-      zellij action move-focus down 2>/dev/null || true
-      zellij action new-pane --name "dashboard-deploys-${DASH_ID}" --close-on-exit --direction down \
-        -- python3 "${SCRIPT_DIR}/watch-deploys.py" "${PROJECT_DIR}" "${DASH_ID}" 2>/dev/null || true
-    else
-      # No right column yet — create deploys to the right of Claude.
-      zellij action new-pane --name "dashboard-deploys-${DASH_ID}" --close-on-exit --direction right \
-        -- python3 "${SCRIPT_DIR}/watch-deploys.py" "${PROJECT_DIR}" "${DASH_ID}" 2>/dev/null || true
+  if $deploy_pane_enabled && [[ "$has_dashboard" -eq 0 ]]; then
+    # Resolve watch-dashboard directory (same fallback logic as beads-tui)
+    WATCH_DASH_DIR="${SCRIPT_DIR}/watch-dashboard"
+    if [[ ! -d "${WATCH_DASH_DIR}/watch_dashboard" ]]; then
+      _candidate="$(cd "${SCRIPT_DIR}/.." 2>/dev/null && git rev-parse --show-toplevel 2>/dev/null || true)"
+      if [[ -z "$_candidate" ]]; then
+        _candidate="$(cd "${PROJECT_DIR}" 2>/dev/null && git rev-parse --show-toplevel 2>/dev/null || true)"
+      fi
+      if [[ -n "$_candidate" && -d "${_candidate}/plugins/claude-multiagent/scripts/watch-dashboard/watch_dashboard" ]]; then
+        WATCH_DASH_DIR="${_candidate}/plugins/claude-multiagent/scripts/watch-dashboard"
+      fi
     fi
-  fi
 
-  if $deploy_pane_enabled && [[ "$has_ghactions" -eq 0 ]]; then
-    # Focus is now on the deploy pane; split it to the right for gh-actions.
-    zellij action new-pane --name "dashboard-ghactions-${DASH_ID}" --close-on-exit --direction right \
-      -- python3 "${SCRIPT_DIR}/watch-gh-actions.py" "${PROJECT_DIR}" 2>/dev/null || true
+    # A right pane now exists (beads was just created above).
+    # Move to the bottom-most right pane and split downward.
+    zellij action move-focus right 2>/dev/null || true
+    zellij action move-focus down 2>/dev/null || true
+    zellij action move-focus down 2>/dev/null || true
+
+    _managed_venv="${BEADS_TUI_VENV:-${SCRIPT_DIR}/.beads-tui-venv}"
+    if [[ -x "${_managed_venv}/bin/python3" ]] && "${_managed_venv}/bin/python3" -c "import textual" 2>/dev/null; then
+      zellij action new-pane --name "dashboard-watch-${DASH_ID}" --close-on-exit --direction down \
+        -- env PYTHONPATH="${WATCH_DASH_DIR}:${PYTHONPATH:-}" "${_managed_venv}/bin/python3" -m watch_dashboard \
+           --project-dir "${PROJECT_DIR}" --dash-id "${DASH_ID}" 2>/dev/null || true
+    elif [[ -x "${WATCH_DASH_DIR}/run.sh" ]]; then
+      zellij action new-pane --name "dashboard-watch-${DASH_ID}" --close-on-exit --direction down \
+        -- "${WATCH_DASH_DIR}/run.sh" --project-dir "${PROJECT_DIR}" --dash-id "${DASH_ID}" 2>/dev/null || true
+    else
+      zellij action new-pane --name "dashboard-watch-${DASH_ID}" --close-on-exit --direction down \
+        -- bash -c 'echo ""; echo "  watch-dashboard requires textual."; echo "  Ensure BEADS_TUI_VENV is set."; echo ""; echo "  Press Enter to close."; read' 2>/dev/null || true
+    fi
   fi
 
   # Return focus to the original (left) pane where Claude runs
   zellij action move-focus left 2>/dev/null || true
 } &
-# No wait — let agents+deploys panes finish in the background while the
+# No wait — let dashboard pane finish in the background while the
 # session-start hook continues to produce its JSON output.

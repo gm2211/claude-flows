@@ -98,7 +98,7 @@ extract_dashboard_id_from_layout() {
   local layout="$1"
   local id=""
   while IFS= read -r line; do
-    if [[ "$line" =~ name=\"dashboard-(beads|deploys)-([a-f0-9]+)\" ]]; then
+    if [[ "$line" =~ name=\"dashboard-(beads|deploys|watch)-([a-f0-9]+)\" ]]; then
       id="${BASH_REMATCH[2]}"
       break
     fi
@@ -113,7 +113,7 @@ extract_project_dashboard_id() {
 
   # Collect all dashboard IDs from the layout
   while IFS= read -r line; do
-    if [[ "$line" =~ name=\"dashboard-(beads|deploys)-([a-f0-9]+)\" ]]; then
+    if [[ "$line" =~ name=\"dashboard-(beads|deploys|watch)-([a-f0-9]+)\" ]]; then
       local candidate="${BASH_REMATCH[2]}"
       # Check if this ID is already in our list
       local found=false
@@ -127,7 +127,7 @@ extract_project_dashboard_id() {
   # Verify each candidate ID against running processes
   # Only trust processes whose cmdline contains BOTH the ID and project_dir
   for id in "${ids[@]+"${ids[@]}"}"; do
-    for script in "watch-deploys.py"; do
+    for script in "watch_dashboard" "watch-deploys.py"; do
       local pids
       pids=$(pgrep -f "$script" 2>/dev/null || true)
       for pid in $pids; do
@@ -224,7 +224,7 @@ kill_tree() {
 # child processes (e.g. fswatch spawned by watch-deploys.py).
 # ---------------------------------------------------------------------------
 
-WATCH_SCRIPTS=("bdt" "beads_tui" "watch-beads.py" "watch-deploys.py")
+WATCH_SCRIPTS=("bdt" "beads_tui" "watch_dashboard" "watch-beads.py" "watch-deploys.py" "watch-gh-actions.py")
 
 killed=0
 for script in "${WATCH_SCRIPTS[@]}"; do
