@@ -107,15 +107,28 @@ Example:
 
 #### Sub-Agent Worktree Dispatch
 
-When dispatching a sub-agent, include in the prompt:
-- `REPO_ROOT=<repo_root>` (absolute path to main repo)
-- `EPIC_BRANCH=<epic>` (the epic this task belongs to)
-- Instruct the agent to create its worktree:
-  ```bash
-  cd <REPO_ROOT>
-  git worktree add .worktrees/<epic>--<task-slug> -b <epic>--<task-slug>
-  cd .worktrees/<epic>--<task-slug>
-  ```
+> **Warning:** The coordinator MUST create the worktree before dispatch. Never ask the agent to create its own worktree — agents skip this step and pollute main.
+
+**New workflow — coordinator pre-creates the worktree, then confines the agent:**
+
+1. **Create the task worktree BEFORE dispatching:**
+   ```bash
+   git worktree add .worktrees/<epic>--<task-slug> -b <epic>--<task-slug>
+   ```
+
+2. **Include a confinement block at the TOP of every agent prompt** (before anything else):
+   ```
+   ## WORKSPACE CONFINEMENT — READ FIRST
+   YOUR WORKING DIRECTORY IS: <absolute-worktree-path>
+   Run `cd <absolute-worktree-path>` as your FIRST command.
+   You MUST NOT operate on files outside this directory.
+   You MUST NOT commit to any other branch.
+   All file reads/writes must use absolute paths within this worktree.
+   ```
+
+3. **Use absolute worktree paths** for all file references in the prompt.
+
+4. The `--assignee` value must match the `name` parameter passed to `Task`.
 
 #### Multiple Coordinators
 
