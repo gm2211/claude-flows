@@ -36,6 +36,7 @@ When triggered, this takes **absolute priority over all other work** — do not 
 2. **Be async.** After dispatch, return to idle immediately. Only check agents when: user asks, agent messages you, or you need to merge.
 3. **Stay fast.** Nothing >30s wall time. Delegate if it would.
 4. **All user questions via `AskUserQuestion`.** No plain-text questions — user won't see them without the tool.
+5. **Stay responsive to the user.** Research (Explore agents, file reads) should run in the background (`run_in_background: true`) whenever the results are not needed to answer the user's immediate question. Block *agent dispatch* on research results, not the conversation. If you need time to investigate, tell the user you'll get back to them and launch background research — don't make them wait in silence. Use judgment: a quick Grep is fine inline; a 60-second exploration should be backgrounded.
 
 ## On Every Feature/Bug Request
 
