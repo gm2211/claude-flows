@@ -68,6 +68,42 @@ if [[ -d "${PWD}/plugins/claude-multiagent" ]]; then
   fi
 fi
 
+# --- Cache staleness detection (end-user / marketplace install) ---
+# Only runs when the developer check above did not set a warning (i.e. the user
+# is not running from the plugin's own git repo checkout).
+_installed_json="${HOME}/.claude/plugins/installed_plugins.json"
+if [[ -z "$CACHE_STALE_WARNING" ]] && [[ -f "$_installed_json" ]] && command -v jq &>/dev/null && command -v gh &>/dev/null; then
+  _version_cache="/tmp/claude-multiagent-version-check"
+  _fetch_latest=true
+
+  # Skip GitHub API call if cache file is fresher than 1 hour
+  if [[ -f "$_version_cache" ]]; then
+    _cache_age=$(( $(date +%s) - $(date -r "$_version_cache" +%s 2>/dev/null || echo 0) ))
+    if [[ "$_cache_age" -lt 3600 ]]; then
+      _fetch_latest=false
+    fi
+  fi
+
+  if [[ "$_fetch_latest" == "true" ]]; then
+    # Fetch latest version from GitHub with a 5-second timeout; fail silently
+    _latest_version=$(timeout 5 gh api repos/gm2211/claude-plugins/contents/.claude-plugin/marketplace.json --jq '.content' 2>/dev/null \
+      | base64 -d 2>/dev/null \
+      | jq -r '.plugins[0].version // empty' 2>/dev/null \
+      || true)
+    if [[ -n "$_latest_version" ]]; then
+      printf '%s' "$_latest_version" > "$_version_cache" 2>/dev/null || true
+    fi
+  else
+    _latest_version=$(cat "$_version_cache" 2>/dev/null || true)
+  fi
+
+  _installed_version=$(jq -r '."claude-multiagent@gm2211-plugins"[0].version // empty' "$_installed_json" 2>/dev/null || true)
+
+  if [[ -n "$_installed_version" && -n "$_latest_version" && "$_installed_version" != "$_latest_version" ]]; then
+    CACHE_STALE_WARNING="⚠️ PLUGIN UPDATE AVAILABLE — installed version ${_installed_version} but latest is ${_latest_version}. To update: rm -rf ~/.claude/plugins/cache/gm2211-plugins/claude-multiagent/ && restart Claude Code session."
+  fi
+fi
+
 # Escape string for JSON embedding.
 # Uses jq when available; falls back to pure-bash substitution.
 if command -v jq &>/dev/null; then
