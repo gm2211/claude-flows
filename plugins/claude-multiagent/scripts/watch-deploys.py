@@ -534,16 +534,16 @@ class DeployWatchApp:
                 excess -= 1
 
         # Draw top border
-        top = "\u250c"
+        top = "+"
         for i, w in enumerate(widths):
-            top += "\u2500" * w
-            top += "\u252c" if i < len(widths) - 1 else "\u2510"
+            top += "-" * w
+            top += "+"
         self.safe_addstr(row, 0, top)
         row += 1
 
         # Draw header row
         x = 0
-        self.safe_addstr(row, x, "\u2502")
+        self.safe_addstr(row, x, "|")
         x += 1
         for i, h in enumerate(headers):
             w = widths[i]
@@ -553,15 +553,15 @@ class DeployWatchApp:
             self.safe_addstr(row, x + pad_left, h, curses.A_BOLD)
             self.safe_addstr(row, x + pad_left + len(h), " " * pad_right)
             x += w
-            self.safe_addstr(row, x, "\u2502")
+            self.safe_addstr(row, x, "|")
             x += 1
         row += 1
 
         # Draw mid border
-        mid = "\u251c"
+        mid = "+"
         for i, w in enumerate(widths):
-            mid += "\u2500" * w
-            mid += "\u253c" if i < len(widths) - 1 else "\u2524"
+            mid += "-" * w
+            mid += "+"
         self.safe_addstr(row, 0, mid)
         row += 1
 
@@ -570,7 +570,7 @@ class DeployWatchApp:
             if row >= max_y - 2:
                 break
             x = 0
-            self.safe_addstr(row, x, "\u2502")
+            self.safe_addstr(row, x, "|")
             x += 1
             for i, cell in enumerate(tr):
                 w = widths[i]
@@ -604,15 +604,15 @@ class DeployWatchApp:
                         self.safe_addstr(row, x + 1 + len(display), " " * pad)
 
                 x += w
-                self.safe_addstr(row, x, "\u2502")
+                self.safe_addstr(row, x, "|")
                 x += 1
             row += 1
 
         # Draw bottom border
-        bot = "\u2514"
+        bot = "+"
         for i, w in enumerate(widths):
-            bot += "\u2500" * w
-            bot += "\u2534" if i < len(widths) - 1 else "\u2518"
+            bot += "-" * w
+            bot += "+"
         self.safe_addstr(row, 0, bot)
         row += 1
 
