@@ -28,6 +28,7 @@ brew install --cask font-fira-code
 | `kitty/kitty.conf` | `~/.config/kitty/kitty.conf` |
 | `zellij/config.kdl` | `~/.config/zellij/config.kdl` |
 | `zellij/layouts/default.kdl` | `~/.config/zellij/layouts/default.kdl` |
+| `nvim/` | `~/.config/nvim/` |
 
 ## Quick install
 
@@ -37,13 +38,18 @@ brew install kitty zellij lazygit
 brew install --cask font-symbols-only-nerd-font font-meslo-lg-nerd-font font-fira-code
 
 # Create config directories
-mkdir -p ~/.config/kitty ~/.config/zellij/layouts
+mkdir -p ~/.config/kitty ~/.config/zellij/layouts ~/.config/nvim
 
 # Symlink configs (adjust REPO_DIR to your clone location)
 REPO_DIR="$(cd "$(dirname "$0")" && pwd)"
 ln -sf "$REPO_DIR/kitty/kitty.conf" ~/.config/kitty/kitty.conf
 ln -sf "$REPO_DIR/zellij/config.kdl" ~/.config/zellij/config.kdl
 ln -sf "$REPO_DIR/zellij/layouts/default.kdl" ~/.config/zellij/layouts/default.kdl
+
+# Nvim config (symlink the whole directory's contents)
+for f in init.lua lua; do
+  ln -sf "$REPO_DIR/nvim/$f" ~/.config/nvim/"$f"
+done
 
 # Reload kitty config (if kitty is already running)
 kill -SIGUSR1 $(pgrep kitty) 2>/dev/null
