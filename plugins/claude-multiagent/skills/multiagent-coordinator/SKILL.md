@@ -176,16 +176,19 @@ bd ticket ID, acceptance criteria, repo path, worktree conventions, test/build c
 
 > **Reporting — mandatory.**
 >
-> Every 60s, post a progress comment to your ticket:
+> Every 60s, post a progress comment to your ticket.
+> **You MUST include `--author <YOUR_AGENT_NAME>`** so comments show your name, not the repo owner's.
 >
 > ```bash
-> bd comment <TICKET_ID> "[<step>/<total>] <activity>
+> bd comments add <TICKET_ID> --author "<YOUR_AGENT_NAME>" "[<step>/<total>] <activity>
 > Done: <completed since last update>
 > Doing: <current work>
 > Blockers: <blockers or none>
 > ETA: <estimate>
 > Files: <modified files>"
 > ```
+>
+> Replace `<YOUR_AGENT_NAME>` with the `name` you were given at dispatch (e.g. `worker-1`).
 >
 > If stuck >3 min, say so in Blockers. Final comment: summary, files modified, test results.
 
