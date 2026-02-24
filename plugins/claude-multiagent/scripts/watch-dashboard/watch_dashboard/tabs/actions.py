@@ -211,7 +211,7 @@ class ActionsTab(Vertical):
 
     def on_mount(self) -> None:
         table = self.query_one("#actions-table", DataTable)
-        table.add_columns("Workflow", "Branch", "Status", "Conclusion", "Started", "Commit")
+        table.add_columns("Workflow", "Branch", "Status", "Conclusion", "Started", "Duration", "Commit")
         self._refresh_data()
 
     def get_selected_url(self) -> str:
@@ -295,13 +295,14 @@ class ActionsTab(Vertical):
             status_cell = Text(display_status, style=status_style)
             conclusion_cell = Text(conclusion, style=status_style) if conclusion else Text("")
 
-            duration = Text(_format_time_ago(run), style="dim")
+            started = Text(_format_time_ago(run), style="dim")
+            duration = Text(_format_run_elapsed(run), style="dim")
 
             sha = (run.get("headSha") or "")[:7]
             commit_color = self._commit_color_map.get(sha, "#cdd6f4")
             commit_cell = Text(sha, style=f"bold {commit_color}")
 
-            table.add_row(workflow, branch, status_cell, conclusion_cell, duration, commit_cell)
+            table.add_row(workflow, branch, status_cell, conclusion_cell, started, duration, commit_cell)
             self._urls.append(run.get("url", ""))
 
         # Status line
