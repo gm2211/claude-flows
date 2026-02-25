@@ -101,6 +101,34 @@ kill -SIGUSR1 $(pgrep kitty) 2>/dev/null
 - **Tab bar:** hidden (zellij handles tabs)
 - **`macos_option_as_alt yes`** -- required for Alt keybinds to pass through to zellij
 
+## Claude worktree function
+
+`shell-configs/claude-function.sh` defines a `claude()` shell function that intercepts the `claude` command when you are on the default branch (main/master) of a git repo and offers to create or switch to a worktree first. This prevents accidental work directly on main.
+
+### Setup
+
+Add this line to your `.zshrc` or `.bashrc`:
+
+```bash
+source /path/to/shell-configs/claude-function.sh
+```
+
+Or symlink it:
+
+```bash
+ln -sf /path/to/shell-configs/claude-function.sh ~/.config/shell/claude-function.sh
+echo 'source ~/.config/shell/claude-function.sh' >> ~/.zshrc
+```
+
+### How it works
+
+- **Not a git repo** → passes through to `command claude` directly
+- **Already in a worktree** → passes through to `command claude` directly
+- **On a non-default branch** → passes through to `command claude` directly
+- **On main/master** → shows a menu of existing `.worktrees/` subdirectories (skipping task worktrees with `--` in the name), or offers to create a new one with an AI-generated branch name
+
+The function uses `command claude` to call the real claude binary, bypassing the shell function itself.
+
 ## Troubleshooting
 
 **Missing icons (boxes in statusline):**
