@@ -10,19 +10,34 @@ This directory contains portable shell functions to be sourced from `~/.zshrc`.
    brew install pngpaste
    ```
 
-2. **Add a source line to `~/.zshrc`.**
-   Determine the absolute path to `functions.zsh` in this repo and append:
+2. **Copy `functions.zsh` to your config directory:**
+
+   ```bash
+   cp /path/to/claude-plugins/shell-configs/zsh-functions/functions.zsh ~/.config/zsh/functions.zsh
+   ```
+
+   Create the `~/.config/zsh` directory if it doesn't exist:
+   ```bash
+   mkdir -p ~/.config/zsh
+   ```
+
+3. **Add a source line to `~/.zshrc`:**
 
    ```bash
    # Portable shell functions from claude-plugins
-   source /absolute/path/to/claude-plugins/shell-configs/zsh-functions/functions.zsh
+   source ~/.config/zsh/functions.zsh
    ```
-
-   Replace `/absolute/path/to/claude-plugins` with wherever this repo is cloned on the current machine.
 
    > **Note:** This file now includes the `claude()` worktree function (previously in `shell-configs/claude-function.sh`). If you had a separate `source .../claude-function.sh` line in your `.zshrc`, remove it — sourcing `functions.zsh` is sufficient.
 
-3. **Reload the shell** (`source ~/.zshrc` or open a new terminal).
+4. **Reload the shell** (`source ~/.zshrc` or open a new terminal).
+
+## Updating the functions
+
+To update to the latest version of the functions:
+1. Pull the latest changes in the `claude-plugins` repo
+2. Re-copy `functions.zsh` to `~/.config/zsh/functions.zsh`
+3. Reload your shell (`source ~/.zshrc` or open a new terminal)
 
 ## What's included
 

@@ -107,11 +107,17 @@ kill -SIGUSR1 $(pgrep kitty) 2>/dev/null
 
 ### Setup
 
-Source `functions.zsh` from your `.zshrc` (this also includes the `ss` function and any future additions):
+Copy `functions.zsh` to your local config and source it from your `.zshrc` (this also includes the `ss` function and any future additions):
 
 ```bash
-source /path/to/shell-configs/zsh-functions/functions.zsh
+# First, copy the file to your config directory
+cp /path/to/claude-plugins/shell-configs/zsh-functions/functions.zsh ~/.config/zsh/functions.zsh
+
+# Then, add this to your ~/.zshrc
+source ~/.config/zsh/functions.zsh
 ```
+
+For detailed setup instructions, see [ZSH Functions — Installation Instructions](./zsh-functions/CLAUDE.md).
 
 ### How it works
 
