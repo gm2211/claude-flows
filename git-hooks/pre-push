@@ -2,8 +2,9 @@
 #
 # pre-push hook — version-bump guard
 #
-# Rejects a push if any plugin directory has changes (vs the remote tip)
-# without a corresponding version bump in marketplace.json.
+# Auto-bumps the patch version in marketplace.json when plugin files have
+# changed without a corresponding version bump, amends HEAD, then exits 1
+# so the caller can push again with the updated SHA.
 #
 # Delegates to bd pre-push logic first (if available).
 #
@@ -54,15 +55,20 @@ if [ -n "$DIRTY_SUBS" ]; then
     exit 1
 fi
 
-# --- Version-bump check ---
+# --- Version-bump check (auto-bump) ---
 #
 # Git pre-push hook receives lines on stdin:
 #   <local ref> <local sha> <remote ref> <remote sha>
 #
-# We check each ref being pushed.
+# When plugin files have changed without a version bump we patch the version
+# in marketplace.json in-place, amend HEAD, and exit 1 so the caller can
+# push again with the new SHA.
 
 MARKETPLACE_JSON=".claude-plugin/marketplace.json"
-ERRORS=""
+
+# Collect plugins that need bumping across all pushed refs.
+# Format: newline-separated "PLUGIN_NAME OLD_VERSION"
+NEEDS_BUMP=""
 
 while read -r LOCAL_REF LOCAL_SHA REMOTE_REF REMOTE_SHA; do
     # Skip delete pushes
@@ -121,25 +127,70 @@ for p in data.get('plugins', []):
         # New plugin with no prior version — skip
         [ -z "$OLD_VERSION" ] && continue
 
-        if [ "$OLD_VERSION" = "$NEW_VERSION" ] || [ -z "$NEW_VERSION" ]; then
-            ERRORS="${ERRORS}\n  - Plugin '$PLUGIN_NAME': files changed but version not bumped (still $OLD_VERSION)"
-            ERRORS="${ERRORS}\n    Changed files:"
-            while read -r F; do
-                ERRORS="${ERRORS}\n      $F"
-            done <<< "$CHANGED"
+        # Version was already bumped — nothing to do
+        if [ "$OLD_VERSION" != "$NEW_VERSION" ] && [ -n "$NEW_VERSION" ]; then
             continue
+        fi
+
+        # Record this plugin for auto-bumping (deduplicate by name)
+        if ! printf "%s" "$NEEDS_BUMP" | grep -qF "$PLUGIN_NAME "; then
+            NEEDS_BUMP="${NEEDS_BUMP}${PLUGIN_NAME} ${OLD_VERSION}
+"
         fi
     done
 done
 
-if [ -n "$ERRORS" ]; then
-    echo "" >&2
-    echo "=== Push rejected: plugin version issues ===" >&2
-    printf "%b\n" "$ERRORS" >&2
-    echo "" >&2
-    echo "Fix: bump the version in marketplace.json, commit, and retry." >&2
-    echo "" >&2
-    exit 1
-fi
+# Nothing to auto-bump — all good.
+[ -z "$NEEDS_BUMP" ] && exit 0
 
-exit 0
+# --- Perform the auto-bumps ---
+#
+# Pass NEEDS_BUMP via a here-string so the while loop runs in the current
+# shell and variable assignments (BUMP_SUMMARY) are visible after the loop.
+
+BUMP_SUMMARY=""
+
+while IFS=" " read -r PLUGIN_NAME OLD_VERSION; do
+    [ -z "$PLUGIN_NAME" ] && continue
+
+    NEW_VERSION=$(python3 -c "
+import json
+
+marketplace_path = '$MARKETPLACE_JSON'
+plugin_name = '$PLUGIN_NAME'
+
+with open(marketplace_path) as f:
+    data = json.load(f)
+
+new_version = None
+for p in data.get('plugins', []):
+    if p.get('name') == plugin_name:
+        parts = p['version'].split('.')
+        parts[-1] = str(int(parts[-1]) + 1)
+        new_version = '.'.join(parts)
+        p['version'] = new_version
+        break
+
+if new_version is not None:
+    with open(marketplace_path, 'w') as f:
+        json.dump(data, f, indent=2)
+        f.write('\n')
+    print(new_version)
+" 2>/dev/null)
+
+    BUMP_SUMMARY="${BUMP_SUMMARY}  Auto-bumped ${PLUGIN_NAME}: ${OLD_VERSION} -> ${NEW_VERSION}
+"
+done <<EOF
+$NEEDS_BUMP
+EOF
+
+git add "$MARKETPLACE_JSON"
+git commit --amend --no-edit
+
+echo "" >&2
+echo "=== Version auto-bumped ===" >&2
+printf "%s" "$BUMP_SUMMARY" >&2
+echo "" >&2
+echo "HEAD was amended. Run \`git push\` again." >&2
+echo "" >&2
+exit 1
