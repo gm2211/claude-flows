@@ -140,11 +140,11 @@ ensure_gh_auth() {
         return 0
     fi
 
-    info "GitHub authentication required. A browser will open for you to authorize."
-    info "Press Enter to continue..."
-    read -r
+    info "GitHub authentication required. Using device code flow (no browser needed)."
+    info "You will be given a one-time code to enter at https://github.com/login/device"
+    echo ""
 
-    gh auth login --web --git-protocol https --scopes repo
+    gh auth login --git-protocol https --scopes repo
 
     if ! gh auth status &>/dev/null; then
         die "GitHub authentication failed"
