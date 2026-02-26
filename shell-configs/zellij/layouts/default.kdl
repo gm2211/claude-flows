@@ -1,5 +1,4 @@
 layout {
-    pane_frames true
     default_tab_template {
         children
         pane size=1 borderless=true {
