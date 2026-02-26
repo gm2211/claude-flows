@@ -107,10 +107,6 @@ wt() {
   worktrees_dir="$repo_root/.worktrees"
   mkdir -p "$worktrees_dir"
 
-  _wt_msg ""
-  _wt_msg "You are on the '$default_branch' branch."
-  _wt_msg ""
-
   case "$subcmd" in
 
     ###########################################################################
