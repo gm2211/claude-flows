@@ -201,34 +201,47 @@ wt() {
         return 1
       fi
 
-      _wt_msg "Existing worktrees:"
-      local _i=0
-      local _wt
-      for _wt in "${epic_worktrees[@]}"; do
-        _i=$((_i + 1))
-        _wt_msg "  ${_i}) ${_wt}"
-      done
-      _wt_msg ""
-
-      local selection
-      printf "Select a worktree [1-${#epic_worktrees[@]}]: " >&2
-      read -r selection </dev/tty
-
       local choice=""
-      if echo "$selection" | grep -qE '^[0-9]+$' && [ "$selection" -ge 1 ] && [ "$selection" -le ${#epic_worktrees[@]} ]; then
-        # Portable: walk array to find the Nth element
-        _i=0
+      if command -v fzf >/dev/null 2>&1; then
+        # fzf mode: pipe worktree names, let user arrow-select
+        local selected
+        selected=$(printf '%s\n' "${epic_worktrees[@]}" | fzf --height=~50% --reverse --prompt="Select worktree: " --header="Arrow keys to navigate, Enter to select, Esc to cancel" </dev/tty)
+        if [ -z "$selected" ]; then
+          _wt_msg "No worktree selected."
+          trap - INT
+          return 1
+        fi
+        choice="$selected"
+      else
+        # Fallback: numbered list
+        _wt_msg "Existing worktrees:"
+        local _i=0
+        local _wt
         for _wt in "${epic_worktrees[@]}"; do
           _i=$((_i + 1))
-          if [ "$_i" -eq "$selection" ]; then
-            choice="$_wt"
-            break
-          fi
+          _wt_msg "  ${_i}) ${_wt}"
         done
-      else
-        _wt_err "Invalid selection: $selection"
-        trap - INT
-        return 1
+        _wt_msg ""
+
+        local selection
+        printf "Select a worktree [1-${#epic_worktrees[@]}]: " >&2
+        read -r selection </dev/tty
+
+        if echo "$selection" | grep -qE '^[0-9]+$' && [ "$selection" -ge 1 ] && [ "$selection" -le ${#epic_worktrees[@]} ]; then
+          # Portable: walk array to find the Nth element
+          _i=0
+          for _wt in "${epic_worktrees[@]}"; do
+            _i=$((_i + 1))
+            if [ "$_i" -eq "$selection" ]; then
+              choice="$_wt"
+              break
+            fi
+          done
+        else
+          _wt_err "Invalid selection: $selection"
+          trap - INT
+          return 1
+        fi
       fi
 
       local target_dir="$worktrees_dir/$choice"
