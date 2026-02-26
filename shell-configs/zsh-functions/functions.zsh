@@ -203,7 +203,7 @@ wt() {
       if [ "$_tty_available" -eq 1 ] && command -v fzf >/dev/null 2>&1; then
         # fzf mode: pipe worktree names, let user arrow-select
         local selected
-        selected=$(printf '%s\n' "${session_worktrees[@]}" | fzf --height=~50% --reverse --prompt="Select worktree: " --header="Arrow keys to navigate, Enter to select, Esc to cancel" </dev/tty 2>/dev/null)
+        selected=$(printf '%s\n' "${session_worktrees[@]}" | fzf --height=~50% --reverse --prompt="Select worktree: " --header="Arrow keys to navigate, Enter to select, Esc to cancel" 2>/dev/null)
         local fzf_exit=$?
         if [ $fzf_exit -ne 0 ] || [ -z "$selected" ]; then
           _wt_msg "No worktree selected."
