@@ -2,9 +2,9 @@
 #
 # pre-push hook — version-bump guard
 #
-# Auto-bumps the patch version in marketplace.json when plugin files have
-# changed without a corresponding version bump, amends HEAD, then exits 1
-# so the caller can push again with the updated SHA.
+# Auto-bumps the patch version in both marketplace.json and plugin.json when
+# plugin files have changed without a corresponding version bump, amends HEAD
+# to include the bump, then allows the push to proceed (exit 0).
 #
 # Delegates to bd pre-push logic first (if available).
 #
@@ -60,9 +60,9 @@ fi
 # Git pre-push hook receives lines on stdin:
 #   <local ref> <local sha> <remote ref> <remote sha>
 #
-# When plugin files have changed without a version bump we patch the version
-# in marketplace.json in-place, amend HEAD, and exit 1 so the caller can
-# push again with the new SHA.
+# When plugin files have changed without a version bump we patch the patch
+# component of the version in both marketplace.json and plugin.json in-place,
+# amend HEAD to include the bump, then exit 0 to allow the push to proceed.
 
 MARKETPLACE_JSON=".claude-plugin/marketplace.json"
 PLUGIN_JSON="plugins/claude-multiagent/.claude-plugin/plugin.json"
@@ -198,7 +198,7 @@ with open(plugin_json_path, 'w') as f:
 " 2>/dev/null
     fi
 
-    BUMP_SUMMARY="${BUMP_SUMMARY}  Auto-bumped ${PLUGIN_NAME}: ${OLD_VERSION} -> ${NEW_VERSION}
+    BUMP_SUMMARY="${BUMP_SUMMARY}  Auto-bumped version to ${NEW_VERSION} (${PLUGIN_NAME}: ${OLD_VERSION} -> ${NEW_VERSION})
 "
 done <<EOF
 $NEEDS_BUMP
@@ -212,6 +212,4 @@ echo "" >&2
 echo "=== Version auto-bumped ===" >&2
 printf "%s" "$BUMP_SUMMARY" >&2
 echo "" >&2
-echo "HEAD was amended. Run \`git push\` again." >&2
-echo "" >&2
-exit 1
+exit 0
