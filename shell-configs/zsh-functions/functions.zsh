@@ -130,7 +130,8 @@ claude() {
     _claude_msg ""
 
     local selection
-    read -r -p "Select a worktree [1-${#epic_worktrees[@]}/n]: " selection </dev/tty >&2
+    printf "Select a worktree [1-${#epic_worktrees[@]}/n]: " >&2
+    read -r selection </dev/tty
 
     if [ "$selection" = "n" ] || [ "$selection" = "N" ]; then
       choice="__new__"
@@ -151,7 +152,8 @@ claude() {
 
   if [ "$choice" = "__new__" ]; then
     local description
-    read -r -p "What are you working on? (short description): " description </dev/tty >&2
+    printf "What are you working on? (short description): " >&2
+    read -r description </dev/tty
 
     if [ -z "$description" ]; then
       _claude_err "Description cannot be empty."
@@ -171,7 +173,8 @@ claude() {
     # Fallback if claude -p failed or returned empty/garbage
     if [ -z "$branch_name" ] || [ "${#branch_name}" -gt 40 ]; then
       _claude_warn "Could not generate branch name automatically. Please provide one."
-      read -r -p "Branch name (kebab-case, max 30 chars): " branch_name </dev/tty >&2
+      printf "Branch name (kebab-case, max 30 chars): " >&2
+      read -r branch_name </dev/tty
 
       if [ -z "$branch_name" ]; then
         _claude_err "Branch name cannot be empty."
