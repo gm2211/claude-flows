@@ -2,7 +2,7 @@
 # GitHub Actions workflow provider for deploy-watch.
 # Responds to: name, config, list
 #
-# Environment variables (set by watch-deploys.py via DEPLOY_WATCH_* prefix):
+# Environment variables (set by watch-dashboard via DEPLOY_WATCH_* prefix):
 #   DEPLOY_WATCH_REPO  — GitHub repo slug, e.g. "owner/repo"
 #                        If not set, auto-detected from the git remote.
 

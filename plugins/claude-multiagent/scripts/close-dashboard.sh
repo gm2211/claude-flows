@@ -127,7 +127,7 @@ extract_project_dashboard_id() {
   # Verify each candidate ID against running processes
   # Only trust processes whose cmdline contains BOTH the ID and project_dir
   for id in "${ids[@]+"${ids[@]}"}"; do
-    for script in "watch_dashboard" "watch-deploys.py"; do
+    for script in "watch_dashboard" "watch-deploys.py"; do  # watch-deploys.py: legacy, safe to remove next version
       local pids
       pids=$(pgrep -f "$script" 2>/dev/null || true)
       for pid in $pids; do
@@ -156,7 +156,7 @@ fi
 
 # Strategy 2 (legacy fallback): Scan watch-*.py processes for the DASH_ID arg.
 if [[ -z "$DASH_ID" ]]; then
-  for script in "watch-beads.py" "watch-deploys.py"; do
+  for script in "watch-beads.py" "watch-deploys.py"; do  # legacy scripts, safe to remove next version
     pids=$(pgrep -f "$script" 2>/dev/null || true)
     for pid in $pids; do
       cmdline=$(ps -p "$pid" -o args= 2>/dev/null || true)
@@ -224,6 +224,8 @@ kill_tree() {
 # child processes (e.g. fswatch spawned by watch-deploys.py).
 # ---------------------------------------------------------------------------
 
+# watch-beads.py, watch-deploys.py, watch-gh-actions.py: legacy process names kept for one
+# version cycle so old sessions still get cleaned up. Safe to remove next version.
 WATCH_SCRIPTS=("bdt" "beads_tui" "watch_dashboard" "watch-beads.py" "watch-deploys.py" "watch-gh-actions.py")
 
 killed=0

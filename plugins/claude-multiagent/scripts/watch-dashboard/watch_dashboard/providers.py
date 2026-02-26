@@ -17,12 +17,10 @@ def default_providers_dir() -> str:
     """Find providers directory relative to this package.
 
     Layout: watch-dashboard/watch_dashboard/providers.py
-    Providers: scripts/providers/
+    Providers: watch-dashboard/providers/
     """
-    scripts_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    # scripts_dir = watch-dashboard/, go up one more to scripts/
-    scripts_dir = os.path.dirname(scripts_dir)
-    return os.path.join(scripts_dir, "providers")
+    watch_dashboard_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    return os.path.join(watch_dashboard_dir, "providers")
 
 
 def list_providers(providers_dir: str) -> list[str]:
@@ -137,7 +135,7 @@ def fetch_deploys(config_file: str, providers_dir: str) -> list[dict] | None:
 
 
 # ---------------------------------------------------------------------------
-# Time helpers (ported from watch-deploys.py)
+# Time helpers
 # ---------------------------------------------------------------------------
 
 def elapsed_since(start_epoch: int | str) -> str:

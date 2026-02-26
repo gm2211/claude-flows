@@ -268,7 +268,8 @@ fi
 # plugin versions running watch-*.py from any path.
 has_beads=$(has_dashboard_pane "$focused_tab" "dashboard-beads" "beads_tui" "$PROJECT_DIR")
 has_dashboard=$(has_dashboard_pane "$focused_tab" "dashboard-watch" "watch_dashboard" "$PROJECT_DIR")
-# Legacy detection for old separate panes (watch-deploys.py / watch-gh-actions.py)
+# Legacy detection for old separate panes (watch-deploys.py / watch-gh-actions.py).
+# Safe to remove next version — only needed while users may still have old sessions.
 has_deploys=$(has_dashboard_pane "$focused_tab" "dashboard-deploys" "watch-deploys.py" "$PROJECT_DIR")
 has_ghactions=$(has_dashboard_pane "$focused_tab" "dashboard-ghactions" "watch-gh-actions.py" "$PROJECT_DIR")
 # Treat legacy panes as equivalent to the new unified dashboard
