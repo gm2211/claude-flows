@@ -33,6 +33,7 @@ brew install --cask font-fira-code
 | `zellij/config.kdl` | `~/.config/zellij/config.kdl` |
 | `zellij/layouts/default.kdl` | `~/.config/zellij/layouts/default.kdl` |
 | `nvim/` | `~/.config/nvim/` |
+| `claude-status-line/statusline.sh` | `~/.config/claude-status-line/statusline.sh` |
 
 ## Quick install
 
@@ -42,7 +43,7 @@ brew install kitty zellij lazygit
 brew install --cask font-symbols-only-nerd-font font-meslo-lg-nerd-font font-fira-code
 
 # Create config directories
-mkdir -p ~/.config/kitty ~/.config/zellij/layouts ~/.config/nvim
+mkdir -p ~/.config/kitty ~/.config/zellij/layouts ~/.config/nvim ~/.config/claude-status-line
 
 # Symlink configs (adjust REPO_DIR to your clone location)
 REPO_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -54,6 +55,10 @@ ln -sf "$REPO_DIR/zellij/layouts/default.kdl" ~/.config/zellij/layouts/default.k
 for f in init.lua lua; do
   ln -sf "$REPO_DIR/nvim/$f" ~/.config/nvim/"$f"
 done
+
+# Claude Code status line
+cp "$REPO_DIR/claude-status-line/statusline.sh" ~/.config/claude-status-line/statusline.sh
+chmod +x ~/.config/claude-status-line/statusline.sh
 
 # Reload kitty config (if kitty is already running)
 kill -SIGUSR1 $(pgrep kitty) 2>/dev/null
@@ -127,6 +132,39 @@ For detailed setup instructions, see [ZSH Functions — Installation Instruction
 - **On main/master** → shows a menu of existing `.worktrees/` subdirectories (skipping task worktrees with `--` in the name), or offers to create a new one with a date-based session name (or custom name)
 
 The function uses `command claude` to call the real claude binary, bypassing the shell function itself.
+
+## Claude Code status line
+
+`shell-configs/claude-status-line/statusline.sh` is a script that formats a single-line status bar for Claude Code. It reads session JSON from stdin and displays: model name, context window usage (colored progress bar), session cost, git info (repo, branch, worktree, files changed, additions/deletions), sandbox mode, working directory, and current time.
+
+### Setup
+
+1. Copy the script to your local config:
+
+```bash
+mkdir -p ~/.config/claude-status-line
+cp /path/to/claude-plugins/shell-configs/claude-status-line/statusline.sh ~/.config/claude-status-line/statusline.sh
+chmod +x ~/.config/claude-status-line/statusline.sh
+```
+
+2. Add the status line to your Claude Code settings (`~/.claude/settings.json`):
+
+```json
+{
+  "statusLine": {
+    "type": "command",
+    "command": "~/.config/claude-status-line/statusline.sh"
+  }
+}
+```
+
+Requires `jq` to be installed (`brew install jq`).
+
+### Config file location
+
+| Repo path | Installs to |
+|-----------|-------------|
+| `claude-status-line/statusline.sh` | `~/.config/claude-status-line/statusline.sh` |
 
 ## Troubleshooting
 
