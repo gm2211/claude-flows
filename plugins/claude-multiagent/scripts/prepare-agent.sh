@@ -247,8 +247,8 @@ info "Worktree ready: $WORKTREE_PATH (branch: $WORKTREE_BRANCH)"
 # Use printf to build the block so special characters (backticks, quotes,
 # em-dashes) are handled correctly without shell interpretation.
 AGENT_REPORTING_BLOCK="$(printf \
-'## Reporting — mandatory.\n\nYour FIRST status update must happen at startup (within 60s).\nThen post an update every 60s.\nYou MUST include `--author %s` so comments show your name.\n\nPreferred path:\n```bash\nbd comments add %s --author "%s" "[<step>/<total>] <activity>\nDone: <completed since last update>\nDoing: <current work>\nBlockers: <blockers or none>\nETA: <estimate>\nFiles: <modified files>"\n```\n\nFallback when `bd comments add` fails (permissions/sandbox/Dolt):\n- Send the SAME update text to the coordinator via `SendMessage`.\n- Prefix the message with: `STATUS_UPDATE %s`\n\nIf stuck >3 min, say so in Blockers. Final update: summary, files modified, test results.' \
-  "$AGENT_NAME" "$PRIMARY_TICKET" "$AGENT_NAME" "$PRIMARY_TICKET")"
+'## Reporting — mandatory.\n\nYour FIRST status update must happen at startup (within 60s).\nThen every 60s, send a status relay to the coordinator via `SendMessage`.\n\nRelay format (required):\n```text\nSTATUS_UPDATE %s\n[<step>/<total>] <activity>\nDone: <completed since last update>\nDoing: <current work>\nBlockers: <blockers or none>\nETA: <estimate>\nFiles: <modified files>\n```\n\nThe coordinator mirrors each STATUS_UPDATE into bead comments. Do not skip the relay.\n\nOptional best-effort direct write if bd works in your sandbox:\n```bash\nbd comments add %s --author \"%s\" \"<same status body>\" || true\n```\n\nIf stuck >3 min, say so in Blockers. Final update: summary, files modified, test results.' \
+  "$PRIMARY_TICKET" "$PRIMARY_TICKET" "$AGENT_NAME")"
 
 ###############################################################################
 # Print eval-safe variable assignments to stdout
