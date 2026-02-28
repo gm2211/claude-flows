@@ -94,7 +94,8 @@ trap cleanup_lock EXIT
 # ---------------------------------------------------------------------------
 
 # Extract the focused tab block from dump-layout output.
-# The focused tab contains focus=true in its tab declaration.
+# The focused tab line format varies across zellij versions, so we support
+# multiple focus attributes.
 get_focused_tab_layout() {
   local layout
   layout=$(run_with_timeout 5 zellij action dump-layout 2>/dev/null) || return 1
@@ -105,8 +106,8 @@ get_focused_tab_layout() {
 
   while IFS= read -r line; do
     if [[ $in_focused -eq 0 ]]; then
-      # Look for a tab line with focus=true
-      if [[ "$line" =~ ^[[:space:]]*tab[[:space:]].*focus=true ]]; then
+      # Look for a focused/active tab declaration.
+      if [[ "$line" =~ ^[[:space:]]*tab[[:space:]].*(focus=true|is_focused=true|active=true|selected=true|current=true|focus[[:space:]]+true|is_focused[[:space:]]+true) ]]; then
         in_focused=1
         depth=1
         result="$line"$'\n'
@@ -123,6 +124,7 @@ get_focused_tab_layout() {
     fi
   done <<< "$layout"
 
+  [[ -n "$result" ]] || return 1
   printf '%s' "$result"
 }
 
@@ -206,6 +208,39 @@ has_dashboard_pane() {
       return
     fi
   done <<< "$layout"
+  echo 0
+}
+
+# Process-level fallback detection for panes when layout parsing is incomplete.
+# These checks are project-scoped to avoid cross-project false positives.
+has_beads_process() {
+  local project_dir="$1"
+  local repo_root
+  repo_root="$(dirname "$(git -C "$project_dir" rev-parse --git-common-dir 2>/dev/null)" 2>/dev/null)" || repo_root="$project_dir"
+
+  local pids pid cmdline
+  pids=$(pgrep -f 'beads_tui' 2>/dev/null || true)
+  for pid in $pids; do
+    cmdline=$(ps -p "$pid" -o args= 2>/dev/null || true)
+    if [[ "$cmdline" == *"${repo_root}/.beads/dolt"* ]]; then
+      echo 1
+      return
+    fi
+  done
+  echo 0
+}
+
+has_watch_process() {
+  local project_dir="$1"
+  local pids pid cmdline
+  pids=$(pgrep -f 'watch_dashboard' 2>/dev/null || true)
+  for pid in $pids; do
+    cmdline=$(ps -p "$pid" -o args= 2>/dev/null || true)
+    if [[ "$cmdline" == *"--project-dir ${project_dir}"* ]] || [[ "$cmdline" == *"$project_dir"* ]]; then
+      echo 1
+      return
+    fi
+  done
   echo 0
 }
 
@@ -351,6 +386,15 @@ has_ghactions=$(has_dashboard_pane "$focused_tab" "dashboard-ghactions" "watch-g
 # Treat legacy panes as equivalent to the new unified dashboard
 if [[ "$has_deploys" -eq 1 ]] || [[ "$has_ghactions" -eq 1 ]]; then
   has_dashboard=1
+fi
+
+# Fallback: if layout matching misses panes, use project-scoped process checks
+# to prevent duplicate pane creation.
+if [[ "$has_beads" -eq 0 ]]; then
+  has_beads=$(has_beads_process "$PROJECT_DIR")
+fi
+if [[ "$has_dashboard" -eq 0 ]]; then
+  has_dashboard=$(has_watch_process "$PROJECT_DIR")
 fi
 
 all_present=true

@@ -92,6 +92,17 @@ if [[ ! -x "${BEADS_TUI_VENV}/bin/python3" ]] || ! "${BEADS_TUI_VENV}/bin/python
       fi
     fi
   done
+  # Common absolute paths when hook PATH is minimal (macOS/Homebrew).
+  if [[ -z "$_py" ]]; then
+    for _abs_py in \
+      /opt/homebrew/bin/python3.13 /opt/homebrew/bin/python3.12 /opt/homebrew/bin/python3.11 /opt/homebrew/bin/python3 \
+      /usr/local/bin/python3.13 /usr/local/bin/python3.12 /usr/local/bin/python3.11 /usr/local/bin/python3; do
+      if [[ -x "$_abs_py" ]]; then
+        _ver=$("$_abs_py" -c "import sys; print(sys.version_info >= (3,11))" 2>/dev/null || echo "False")
+        if [[ "$_ver" == "True" ]]; then _py="$_abs_py"; break; fi
+      fi
+    done
+  fi
   # Also check common framework paths
   if [[ -z "$_py" ]]; then
     for _fwk in /Library/Frameworks/Python.framework/Versions/3.*/bin/python3; do

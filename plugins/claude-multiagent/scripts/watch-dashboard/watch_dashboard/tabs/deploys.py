@@ -98,11 +98,19 @@ class DeploysTab(Vertical):
 
     def compose(self) -> ComposeResult:
         yield Static("", id="deploy-service-url")
-        yield DataTable(id="deploy-table", cursor_type="row", zebra_stripes=True)
+        yield Static("", id="deploy-env-summary")
+        yield DataTable(
+            id="deploy-table",
+            cursor_type="row",
+            zebra_stripes=True,
+            show_row_labels=False,
+            header_height=1,
+        )
         yield Static("", id="deploy-status")
 
     def on_mount(self) -> None:
         table = self.query_one("#deploy-table", DataTable)
+        table.mouse_hover = False
         table.add_columns("Commit", "Version", "Env", "Message", "Build", "Deploy", "Elapsed")
         self._refresh_data()
 
@@ -154,6 +162,56 @@ class DeploysTab(Vertical):
 
         self.query_one("#deploy-status", Static).update(msg)
         self.query_one("#deploy-service-url", Static).update("")
+        self.query_one("#deploy-env-summary", Static).update("")
+
+    @staticmethod
+    def _normalize_env_name(name: str) -> str:
+        env = name.strip().lower()
+        if env in ("production",):
+            return "prod"
+        if env in ("stg",):
+            return "staging"
+        return env
+
+    @staticmethod
+    def _revision_for_record(record: dict) -> str:
+        revision = str(record.get("commit", "") or "").strip()
+        if not revision:
+            revision = str(record.get("tag", "") or record.get("version", "") or "").strip()
+        if (
+            len(revision) > 7
+            and all(ch in "0123456789abcdefABCDEF" for ch in revision)
+        ):
+            return revision[:7]
+        return revision
+
+    def _environment_summary(self, records: list[dict]) -> Text:
+        latest_by_env: dict[str, str] = {}
+        for rec in records:
+            env = self._normalize_env_name(str(rec.get("environment", "") or ""))
+            if not env:
+                continue
+            revision = self._revision_for_record(rec)
+            if not revision:
+                continue
+            if env not in latest_by_env:
+                latest_by_env[env] = revision
+
+        if not latest_by_env:
+            return Text("")
+
+        ordered_envs = ["prod", "staging"]
+        extras = sorted([e for e in latest_by_env if e not in ordered_envs])
+        envs = [e for e in ordered_envs if e in latest_by_env] + extras
+
+        parts: list[Text] = [Text("Env commits: ", style="dim")]
+        for idx, env in enumerate(envs):
+            style = _ENV_STYLES.get(env, "dim")
+            parts.append(Text(f"{env}", style=style))
+            parts.append(Text(f" {latest_by_env[env]}", style="bold #89b4fa"))
+            if idx < len(envs) - 1:
+                parts.append(Text(" | ", style="dim"))
+        return Text.assemble(*parts)
 
     def _populate_table(self) -> None:
         """Populate the DataTable with cached records."""
@@ -176,6 +234,7 @@ class DeploysTab(Vertical):
                 break
         url_widget = self.query_one("#deploy-service-url", Static)
         url_widget.update(Text(service_url, style="#89b4fa") if service_url else "")
+        self.query_one("#deploy-env-summary", Static).update(self._environment_summary(records))
 
         for rec in records:
             commit = Text(rec.get("commit", "")[:7], style="bold")
