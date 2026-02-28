@@ -184,11 +184,16 @@ container_rows() {
     while IFS= read -r cid; do
         [ -z "$cid" ] && continue
         found="true"
-        local repo name status
+        local repo repo_display name status
         repo=$(docker inspect "$cid" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null | grep '^REPO=' | cut -d= -f2- || true)
+        if [[ "${repo:-}" =~ ^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$ ]]; then
+            repo_display="$repo"
+        else
+            repo_display="custom"
+        fi
         name=$(docker inspect "$cid" --format '{{.Name}}' 2>/dev/null | sed 's|^/||' || true)
         status=$(docker ps -a --filter "id=$cid" --format '{{.Status}}' 2>/dev/null || true)
-        printf '%s\t%s\t%s\t%s\n' "$cid" "${name:-$cid}" "${repo:-unknown}" "${status:-unknown}"
+        printf '%s\t%s\t%s\t%s\n' "$cid" "${name:-$cid}" "${repo_display:-custom}" "${status:-unknown}"
     done < <(docker ps -a --filter "ancestor=$IMAGE_NAME" --format '{{.ID}}' 2>/dev/null)
 
     [ "$found" = "true" ] || return 1
@@ -234,24 +239,19 @@ repo_volume_name() {
     printf 'claude-repo-%s' "$slug"
 }
 
-check_existing_containers() {
-    local rows
-    if ! rows="$(container_rows)"; then
-        die "No containers found. Launch a new one without --attach."
-    fi
-
-    print_container_table "$rows"
-    echo ""
-
+select_container_and_attach() {
+    local rows="$1"
+    local allow_new="${2:-false}"
     if _tty_available && command -v fzf >/dev/null 2>&1; then
         local selected
         selected=$(printf '%s\n' "$rows" | fzf --height=~50% --reverse \
             --delimiter=$'\t' --with-nth=2,3,4 \
             --prompt="Select container to attach: " \
-            --header="Arrow keys to navigate, Enter to select, Esc to cancel" \
+            --header="Arrow keys to navigate, Enter to select, Esc for new launch" \
             2>/dev/null </dev/tty)
         local fzf_exit=$?
         if [ "$fzf_exit" -ne 0 ] || [ -z "$selected" ]; then
+            [ "$allow_new" = "true" ] && return 1
             die "No container selected."
         fi
         attach_to_container "$(printf '%s' "$selected" | cut -f1)"
@@ -265,8 +265,15 @@ check_existing_containers() {
         done <<< "$rows"
 
         local choice=""
-        printf "  Enter container number to attach: "
+        if [ "$allow_new" = "true" ]; then
+            printf "  Enter container number to attach, or n for new: "
+        else
+            printf "  Enter container number to attach: "
+        fi
         read -r choice </dev/tty
+        if [ "$allow_new" = "true" ] && { [ -z "$choice" ] || [ "$choice" = "n" ] || [ "$choice" = "N" ]; }; then
+            return 1
+        fi
         if [[ "$choice" =~ ^[0-9]+$ ]] && [ "$choice" -ge 1 ] && [ "$choice" -le "${#ids[@]}" ]; then
             attach_to_container "${ids[$((choice-1))]}"
         else
@@ -275,8 +282,34 @@ check_existing_containers() {
         return 0
     fi
 
+    [ "$allow_new" = "true" ] && return 1
     error "No TTY available for interactive selection."
     die "Run launch.sh --attach in an interactive terminal."
+}
+
+check_existing_containers() {
+    local rows
+    if ! rows="$(container_rows)"; then
+        die "No containers found. Launch a new one without --attach."
+    fi
+
+    print_container_table "$rows"
+    echo ""
+    select_container_and_attach "$rows" "false"
+}
+
+maybe_attach_existing_containers() {
+    local rows
+    rows="$(container_rows 2>/dev/null || true)"
+    [ -n "$rows" ] || return 0
+
+    print_container_table "$rows"
+    echo ""
+    info "Select a container to attach, or cancel to start a new launch."
+    if select_container_and_attach "$rows" "true"; then
+        return 0
+    fi
+    info "Starting a new container launch..."
 }
 
 # ── Step 3: Repo Selection ────────────────────────────────────
@@ -523,6 +556,7 @@ main() {
         exit 0
     fi
 
+    maybe_attach_existing_containers
     select_repo
     ensure_api_key
     if [ -z "${GH_TOKEN:-}" ]; then
