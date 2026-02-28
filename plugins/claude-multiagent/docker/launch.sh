@@ -183,9 +183,17 @@ container_rows() {
 
     while IFS= read -r cid; do
         [ -z "$cid" ] && continue
-        found="true"
-        local repo repo_display name status
+        local repo repo_display name status prompt_value
         repo=$(docker inspect "$cid" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null | grep '^REPO=' | cut -d= -f2- || true)
+        prompt_value=$(docker inspect "$cid" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null | grep '^CLAUDE_PROMPT=' | cut -d= -f2- || true)
+
+        # Only show containers that are expected to be attachable shells.
+        # Task containers launched with CLAUDE_PROMPT are intentionally excluded.
+        if [ -n "${prompt_value:-}" ]; then
+            continue
+        fi
+
+        found="true"
         if [[ "${repo:-}" =~ ^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$ ]]; then
             repo_display="$repo"
         else
@@ -233,6 +241,10 @@ _tty_available() {
     [ -t 0 ] || { [ -e /dev/tty ] && : </dev/tty 2>/dev/null; }
 }
 
+_use_fzf() {
+    [ "${MULTIAGENT_USE_FZF:-0}" = "1" ] && _tty_available && command -v fzf >/dev/null 2>&1
+}
+
 repo_volume_name() {
     local slug
     slug=$(printf '%s' "$REPO" | tr '[:upper:]' '[:lower:]' | sed 's#[^a-z0-9_.-]#-#g')
@@ -242,7 +254,7 @@ repo_volume_name() {
 select_container_and_attach() {
     local rows="$1"
     local allow_new="${2:-false}"
-    if _tty_available && command -v fzf >/dev/null 2>&1; then
+    if _use_fzf; then
         local selected
         selected=$(printf '%s\n' "$rows" | fzf --height=~50% --reverse \
             --delimiter=$'\t' --with-nth=2,3,4 \
@@ -338,7 +350,7 @@ select_repo() {
             repo_array+=("$repo")
         done <<< "$repos"
 
-        if _tty_available && command -v fzf >/dev/null 2>&1; then
+        if _use_fzf; then
             # fzf mode
             local selected
             selected=$(printf '%s\n' "${repo_array[@]}" | fzf --height=~50% --reverse \
@@ -442,8 +454,13 @@ launch_container() {
 
     # If a same-name container is already running, reuse it instead of failing
     local existing_state
+    local existing_prompt
     existing_state=$(docker inspect "$container_name" --format '{{.State.Status}}' 2>/dev/null || true)
+    existing_prompt=$(docker inspect "$container_name" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null | grep '^CLAUDE_PROMPT=' | cut -d= -f2- || true)
     if [ "$existing_state" = "running" ]; then
+        if [ -n "${existing_prompt:-}" ]; then
+            die "Container '$container_name' is a task container (CLAUDE_PROMPT set) and is not attachable. Stop it first."
+        fi
         if [ -n "${CLAUDE_PROMPT:-}" ]; then
             die "Container '$container_name' is already running. Stop it first, or run --attach."
         fi
