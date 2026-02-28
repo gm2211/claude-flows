@@ -21,7 +21,7 @@ Includes full dev environment: Zellij terminal multiplexer, Neovim with AstroNvi
 ## Prerequisites
 
 - **Docker Desktop** (or Docker Engine) — [Get Docker](https://docker.com/get-started)
-- **GitHub CLI** (`gh`) — `brew install gh` on macOS, or [Linux install guide](https://github.com/cli/cli/blob/trunk/docs/install_linux.md)
+- **GitHub CLI** (`gh`) — optional if you already provide `GH_TOKEN`; required for interactive device-flow auth and repo listing
 - **Anthropic API key** — from [console.anthropic.com](https://console.anthropic.com)
 
 ## How Authentication Works
@@ -38,7 +38,8 @@ The launch script uses GitHub's **device flow** — no manual token creation nee
 
 ### CI / Automation
 
-For headless environments, create a fine-grained Personal Access Token:
+For headless environments, create a fine-grained Personal Access Token and pass
+it as `GH_TOKEN` (no `gh` binary/login required):
 
 1. Go to [github.com/settings/personal-access-tokens/new](https://github.com/settings/personal-access-tokens/new)
 2. Set **"Only select repositories"** → pick your target repo

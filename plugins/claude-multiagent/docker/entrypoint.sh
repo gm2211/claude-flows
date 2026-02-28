@@ -44,7 +44,9 @@ log_success "Git credentials configured via GH_TOKEN"
 # 3. Clone repository
 # ---------------------------------------------------------------------------
 log_info "Cloning $REPO..."
-git clone --depth=50 "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git" /home/claude/repo
+# Clone without embedding GH_TOKEN in remote URL. Auth is provided by
+# credential.helper configured above.
+git clone --depth=50 "https://github.com/${REPO}.git" /home/claude/repo
 cd /home/claude/repo
 
 if [ -n "${REPO_BRANCH:-}" ]; then

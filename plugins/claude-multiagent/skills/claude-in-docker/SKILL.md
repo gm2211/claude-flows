@@ -65,14 +65,16 @@ Run:
 ```bash
 command -v docker &>/dev/null && echo "docker: ok" || echo "docker: NOT FOUND"
 docker info &>/dev/null && echo "docker daemon: running" || echo "docker daemon: NOT RUNNING"
-command -v gh &>/dev/null && echo "gh: ok" || echo "gh: NOT FOUND"
+command -v gh &>/dev/null && echo "gh: ok" || echo "gh: NOT FOUND (GH_TOKEN mode only)"
+test -n "${GH_TOKEN:-}" && echo "GH_TOKEN: set" || echo "GH_TOKEN: NOT SET"
 ```
 
 If `docker` is not installed, tell the user: "Docker is required. Install it from https://docker.com/get-started"
 
 If the Docker daemon is not running, tell the user: "Docker daemon is not running. Start Docker Desktop and try again."
 
-If `gh` is not installed, tell the user: "GitHub CLI (gh) is required. Install with: brew install gh"
+If `gh` is not installed and `GH_TOKEN` is not set, tell the user:
+"Either install GitHub CLI (`brew install gh`) or set `GH_TOKEN`."
 
 Stop here if any prerequisite is missing.
 

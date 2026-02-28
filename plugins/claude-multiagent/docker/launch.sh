@@ -29,6 +29,7 @@ CLAUDE_MODEL=""
 MAX_BUDGET_USD=""
 ATTACH_MODE="false"
 NO_PUSH="false"
+GH_AVAILABLE="false"
 
 usage() {
     cat <<'USAGE'
@@ -127,17 +128,33 @@ check_prerequisites() {
         die "Docker daemon is not running. Start Docker Desktop and try again."
     fi
 
-    if ! command -v gh &>/dev/null; then
-        die "GitHub CLI (gh) is not installed.\n  macOS: brew install gh\n  Linux: https://github.com/cli/cli/blob/trunk/docs/install_linux.md"
+    if command -v gh &>/dev/null; then
+        GH_AVAILABLE="true"
+    else
+        GH_AVAILABLE="false"
+        warn "GitHub CLI (gh) not found. Falling back to GH_TOKEN/manual repo mode."
     fi
 }
 
 # ── Step 2: GitHub Authentication ─────────────────────────────
 
 ensure_gh_auth() {
+    if [ -n "${GH_TOKEN:-}" ]; then
+        success "Using GH_TOKEN from environment"
+        return 0
+    fi
+
+    if [ "$GH_AVAILABLE" != "true" ]; then
+        die "GH_TOKEN is not set and GitHub CLI (gh) is not installed.\n  Install gh: brew install gh\n  Or set GH_TOKEN and rerun."
+    fi
+
     if gh auth status &>/dev/null; then
         success "GitHub CLI authenticated"
         return 0
+    fi
+
+    if ! _tty_available; then
+        die "No GH_TOKEN set and gh is not authenticated in a non-interactive shell.\n  Run 'gh auth login' first, or set GH_TOKEN."
     fi
 
     info "GitHub authentication required. Using device code flow (no browser needed)."
@@ -326,9 +343,12 @@ select_repo() {
     info "Select a repository:"
     echo ""
 
-    # Fetch recent repos
+    # Fetch recent repos (when gh is available); otherwise manual entry.
     local repos
-    repos=$(gh repo list --limit 15 --json nameWithOwner -q '.[].nameWithOwner' 2>/dev/null || true)
+    repos=""
+    if [ "$GH_AVAILABLE" = "true" ]; then
+        repos=$(gh repo list --limit 15 --json nameWithOwner -q '.[].nameWithOwner' 2>/dev/null || true)
+    fi
 
     if [ -n "$repos" ]; then
         local repo_array=()
@@ -532,7 +552,10 @@ main() {
 
     select_repo
     ensure_api_key
-    GH_TOKEN=$(gh auth token)
+    if [ -z "${GH_TOKEN:-}" ]; then
+        [ "$GH_AVAILABLE" = "true" ] || die "GH_TOKEN is required when gh is unavailable."
+        GH_TOKEN=$(gh auth token)
+    fi
     build_image "$FORCE_REBUILD"
     launch_container
 }
