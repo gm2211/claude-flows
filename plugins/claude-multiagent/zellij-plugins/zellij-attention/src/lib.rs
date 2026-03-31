@@ -21,6 +21,8 @@ pub struct State {
     pub(crate) config: NotificationConfig,
     updating_tabs: bool,
     pub(crate) pending_strips: std::collections::HashSet<usize>,
+    pub(crate) spinner_index: usize,
+    timer_running: bool,
 }
 
 impl State {
@@ -59,17 +61,47 @@ impl State {
     }
 
     pub(crate) fn tab_name_has_icon(&self, name: &str) -> bool {
-        let waiting_suffix = format!(" {}", self.config.waiting_icon);
         let completed_suffix = format!(" {}", self.config.completed_icon);
-        name.ends_with(&waiting_suffix) || name.ends_with(&completed_suffix)
+        if name.ends_with(&completed_suffix) {
+            return true;
+        }
+        // Check all spinner frames
+        for frame in &self.config.spinner_frames {
+            let suffix = format!(" {}", frame);
+            if name.ends_with(&suffix) {
+                return true;
+            }
+        }
+        // Also check legacy waiting_icon in case it differs from spinner frames
+        let waiting_suffix = format!(" {}", self.config.waiting_icon);
+        if name.ends_with(&waiting_suffix) {
+            return true;
+        }
+        false
     }
 
     pub(crate) fn strip_icons(&self, name: &str) -> String {
         let mut result = name.to_string();
-        for icon in [&self.config.waiting_icon, &self.config.completed_icon] {
-            let suffix = format!(" {}", icon);
-            while result.ends_with(&suffix) {
-                result.truncate(result.len() - suffix.len());
+        // Strip completed icon
+        let completed_suffix = format!(" {}", self.config.completed_icon);
+        while result.ends_with(&completed_suffix) {
+            result.truncate(result.len() - completed_suffix.len());
+        }
+        // Strip legacy waiting_icon
+        let waiting_suffix = format!(" {}", self.config.waiting_icon);
+        while result.ends_with(&waiting_suffix) {
+            result.truncate(result.len() - waiting_suffix.len());
+        }
+        // Strip all spinner frames
+        let mut changed = true;
+        while changed {
+            changed = false;
+            for frame in &self.config.spinner_frames {
+                let suffix = format!(" {}", frame);
+                if result.ends_with(&suffix) {
+                    result.truncate(result.len() - suffix.len());
+                    changed = true;
+                }
             }
         }
         result
@@ -90,6 +122,11 @@ impl State {
             }
         }
         if has_completed { Some(NotificationType::Completed) } else { None }
+    }
+
+    /// Returns true if any notification is in Waiting state.
+    pub(crate) fn has_any_waiting(&self) -> bool {
+        self.notification_state.values().any(|&n| n == NotificationType::Waiting)
     }
 
     /// Returns true if there are original_tab_names entries waiting to be
@@ -119,9 +156,23 @@ impl State {
         false
     }
 
+    /// Start the spinner timer if not already running and there are waiting notifications.
+    fn start_spinner_timer(&mut self) {
+        if !self.timer_running && self.has_any_waiting() {
+            let interval_secs = self.config.spinner_interval_ms as f64 / 1000.0;
+            set_timeout(interval_secs);
+            self.timer_running = true;
+        }
+    }
+
     fn update_tab_names(&mut self) {
         if self.updating_tabs || !self.config.enabled { return; }
         self.updating_tabs = true;
+
+        let spinner_frame = self.config.spinner_frames
+            .get(self.spinner_index % self.config.spinner_frames.len())
+            .cloned()
+            .unwrap_or_else(|| self.config.waiting_icon.clone());
 
         let mut notified_positions: std::collections::HashSet<usize> = std::collections::HashSet::new();
 
@@ -137,7 +188,7 @@ impl State {
                     self.original_tab_names.insert(tab.position, original);
                 }
                 let icon = match notification {
-                    NotificationType::Waiting => &self.config.waiting_icon,
+                    NotificationType::Waiting => &spinner_frame,
                     NotificationType::Completed => &self.config.completed_icon,
                 };
                 let original = self.original_tab_names.get(&tab.position)
@@ -207,6 +258,7 @@ impl ZellijPlugin for State {
             EventType::PermissionRequestResult,
             EventType::TabUpdate,
             EventType::PaneUpdate,
+            EventType::Timer,
         ]);
         self.config = NotificationConfig::from_configuration(&configuration);
         eprintln!("zellij-attention: v{} loaded\n", env!("CARGO_PKG_VERSION"));
@@ -239,6 +291,20 @@ impl ZellijPlugin for State {
                     || self.has_stale_icons()
                 {
                     self.update_tab_names();
+                }
+                false
+            }
+            Event::Timer(_elapsed) => {
+                self.timer_running = false;
+                let frames_len = self.config.spinner_frames.len();
+                if frames_len > 0 {
+                    self.spinner_index = (self.spinner_index + 1) % frames_len;
+                }
+                self.update_tab_names();
+                if self.has_any_waiting() {
+                    let interval_secs = self.config.spinner_interval_ms as f64 / 1000.0;
+                    set_timeout(interval_secs);
+                    self.timer_running = true;
                 }
                 false
             }
@@ -292,6 +358,10 @@ impl ZellijPlugin for State {
         unblock_cli_pipe_input(&pipe_message.name);
 
         self.notification_state.insert(pane_id, notification_type);
+
+        if notification_type == NotificationType::Waiting {
+            self.start_spinner_timer();
+        }
 
         self.update_tab_names();
         false

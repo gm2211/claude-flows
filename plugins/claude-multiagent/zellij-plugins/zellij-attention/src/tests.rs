@@ -27,11 +27,24 @@ fn add_notification(state: &mut State, pane_id: u32, ntype: NotificationType) {
 #[test]
 fn test_strip_icons() {
     let state = State::default();
+    // Legacy waiting_icon (⏳) should still be stripped
     assert_eq!(state.strip_icons("Tab 1 ⏳"), "Tab 1");
     assert_eq!(state.strip_icons("Tab 1 ✅"), "Tab 1");
     assert_eq!(state.strip_icons("Tab 1 ⏳ ⏳"), "Tab 1");
     assert_eq!(state.strip_icons("Tab 1"), "Tab 1");
     assert_eq!(state.strip_icons(""), "");
+}
+
+#[test]
+fn test_strip_icons_spinner_frames() {
+    let state = State::default();
+    // Braille spinner frames should be stripped
+    assert_eq!(state.strip_icons("Tab 1 ⠋"), "Tab 1");
+    assert_eq!(state.strip_icons("Tab 1 ⠙"), "Tab 1");
+    assert_eq!(state.strip_icons("Tab 1 ⠸"), "Tab 1");
+    assert_eq!(state.strip_icons("Tab 1 ⠏"), "Tab 1");
+    // Should not strip mid-name occurrences
+    assert_eq!(state.strip_icons("⠋ Tab 1"), "⠋ Tab 1");
 }
 
 #[test]
@@ -41,6 +54,52 @@ fn test_tab_name_has_icon() {
     assert!(state.tab_name_has_icon("Tab 1 ✅"));
     assert!(!state.tab_name_has_icon("Tab 1"));
     assert!(!state.tab_name_has_icon("⏳ Tab 1"));
+}
+
+#[test]
+fn test_tab_name_has_icon_spinner_frames() {
+    let state = State::default();
+    // All braille spinner frames should be recognized as icons
+    for frame in &state.config.spinner_frames {
+        let name = format!("Tab 1 {}", frame);
+        assert!(state.tab_name_has_icon(&name), "Expected icon detection for frame: {}", frame);
+    }
+    // No false positives for prefix or unrelated suffix
+    assert!(!state.tab_name_has_icon("Tab 1"));
+    assert!(!state.tab_name_has_icon("⠋ Tab 1"));
+}
+
+#[test]
+fn test_spinner_frame_cycling() {
+    let state = State::default();
+    let frames = &state.config.spinner_frames;
+    assert_eq!(frames.len(), 10);
+
+    // Verify all default braille frames are present
+    let expected = vec!["⠋","⠙","⠹","⠸","⠼","⠴","⠦","⠧","⠇","⠏"];
+    for (i, expected_frame) in expected.iter().enumerate() {
+        assert_eq!(&frames[i], expected_frame, "Frame {} mismatch", i);
+    }
+
+    // Verify modular indexing works correctly
+    assert_eq!(frames[0 % frames.len()], "⠋");
+    assert_eq!(frames[9 % frames.len()], "⠏");
+    assert_eq!(frames[10 % frames.len()], "⠋"); // wraps around
+}
+
+#[test]
+fn test_has_any_waiting() {
+    let mut state = State::default();
+    assert!(!state.has_any_waiting());
+
+    add_notification(&mut state, 1, NotificationType::Completed);
+    assert!(!state.has_any_waiting());
+
+    add_notification(&mut state, 2, NotificationType::Waiting);
+    assert!(state.has_any_waiting());
+
+    state.notification_state.remove(&2);
+    assert!(!state.has_any_waiting());
 }
 
 #[test]
