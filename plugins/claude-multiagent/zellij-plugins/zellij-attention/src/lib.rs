@@ -23,6 +23,7 @@ pub struct State {
     pub(crate) pending_strips: std::collections::HashSet<usize>,
     pub(crate) spinner_index: usize,
     timer_running: bool,
+    pub(crate) completed_tabs: std::collections::HashSet<usize>,
 }
 
 impl State {
@@ -37,8 +38,11 @@ impl State {
 
     pub(crate) fn check_and_clear_focus(&mut self) -> bool {
         if let Some(focused_pane_id) = self.determine_focused_pane() {
-            if self.notification_state.remove(&focused_pane_id).is_some() {
-                return true;
+            if let Some(&notification) = self.notification_state.get(&focused_pane_id) {
+                if notification == NotificationType::Completed {
+                    self.notification_state.remove(&focused_pane_id);
+                    return true;
+                }
             }
         }
         false
@@ -121,7 +125,13 @@ impl State {
                 }
             }
         }
-        if has_completed { Some(NotificationType::Completed) } else { None }
+        if has_completed {
+            return Some(NotificationType::Completed);
+        }
+        if self.completed_tabs.contains(&tab_position) {
+            return Some(NotificationType::Completed);
+        }
+        None
     }
 
     /// Returns true if any notification is in Waiting state.
@@ -240,6 +250,7 @@ impl State {
             let valid_positions: std::collections::HashSet<usize> = self.tabs.iter().map(|t| t.position).collect();
             self.original_tab_names.retain(|pos, _| valid_positions.contains(pos));
             self.pending_strips.retain(|pos| valid_positions.contains(pos));
+            self.completed_tabs.retain(|pos| valid_positions.contains(pos));
         }
 
         self.updating_tabs = false;
@@ -274,6 +285,9 @@ impl ZellijPlugin for State {
             }
             Event::TabUpdate(tab_info) => {
                 self.tabs = tab_info;
+                if let Some(active_tab) = self.tabs.iter().find(|t| t.active) {
+                    self.completed_tabs.remove(&active_tab.position);
+                }
                 let focus_cleared = self.check_and_clear_focus();
                 let stale_cleaned = self.clean_stale_notifications();
                 if focus_cleared || stale_cleaned || self.has_pending_restores()
@@ -285,6 +299,9 @@ impl ZellijPlugin for State {
             }
             Event::PaneUpdate(pane_manifest) => {
                 self.panes = pane_manifest;
+                if let Some(active_tab) = self.tabs.iter().find(|t| t.active) {
+                    self.completed_tabs.remove(&active_tab.position);
+                }
                 let focus_cleared = self.check_and_clear_focus();
                 let stale_cleaned = self.clean_stale_notifications();
                 if focus_cleared || stale_cleaned || self.has_pending_restores()
@@ -358,6 +375,16 @@ impl ZellijPlugin for State {
         unblock_cli_pipe_input(&pipe_message.name);
 
         self.notification_state.insert(pane_id, notification_type);
+
+        if notification_type == NotificationType::Completed {
+            // Track at tab level so it survives pane closure
+            for (tab_pos, panes) in &self.panes.panes {
+                if panes.iter().any(|p| p.id == pane_id && !p.is_plugin) {
+                    self.completed_tabs.insert(*tab_pos);
+                    break;
+                }
+            }
+        }
 
         if notification_type == NotificationType::Waiting {
             self.start_spinner_timer();

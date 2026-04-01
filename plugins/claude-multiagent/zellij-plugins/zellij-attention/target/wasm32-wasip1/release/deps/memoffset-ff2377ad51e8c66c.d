@@ -1,0 +1,10 @@
+/Users/gmecocci/projects/claude-plugins/plugins/claude-multiagent/zellij-plugins/zellij-attention/target/wasm32-wasip1/release/deps/memoffset-ff2377ad51e8c66c.d: /Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/memoffset-0.6.5/src/lib.rs /Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/memoffset-0.6.5/src/raw_field.rs /Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/memoffset-0.6.5/src/offset_of.rs /Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/memoffset-0.6.5/src/span_of.rs
+
+/Users/gmecocci/projects/claude-plugins/plugins/claude-multiagent/zellij-plugins/zellij-attention/target/wasm32-wasip1/release/deps/libmemoffset-ff2377ad51e8c66c.rlib: /Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/memoffset-0.6.5/src/lib.rs /Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/memoffset-0.6.5/src/raw_field.rs /Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/memoffset-0.6.5/src/offset_of.rs /Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/memoffset-0.6.5/src/span_of.rs
+
+/Users/gmecocci/projects/claude-plugins/plugins/claude-multiagent/zellij-plugins/zellij-attention/target/wasm32-wasip1/release/deps/libmemoffset-ff2377ad51e8c66c.rmeta: /Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/memoffset-0.6.5/src/lib.rs /Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/memoffset-0.6.5/src/raw_field.rs /Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/memoffset-0.6.5/src/offset_of.rs /Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/memoffset-0.6.5/src/span_of.rs
+
+/Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/memoffset-0.6.5/src/lib.rs:
+/Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/memoffset-0.6.5/src/raw_field.rs:
+/Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/memoffset-0.6.5/src/offset_of.rs:
+/Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/memoffset-0.6.5/src/span_of.rs:

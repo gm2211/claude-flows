@@ -1,0 +1,10 @@
+/Users/gmecocci/projects/claude-plugins/plugins/claude-multiagent/zellij-plugins/zellij-attention/target/aarch64-apple-darwin/debug/deps/castaway-a460a97f3fee7b90.d: /Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/castaway-0.2.4/src/lib.rs /Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/castaway-0.2.4/src/internal.rs /Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/castaway-0.2.4/src/lifetime_free.rs /Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/castaway-0.2.4/src/utils.rs
+
+/Users/gmecocci/projects/claude-plugins/plugins/claude-multiagent/zellij-plugins/zellij-attention/target/aarch64-apple-darwin/debug/deps/libcastaway-a460a97f3fee7b90.rlib: /Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/castaway-0.2.4/src/lib.rs /Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/castaway-0.2.4/src/internal.rs /Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/castaway-0.2.4/src/lifetime_free.rs /Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/castaway-0.2.4/src/utils.rs
+
+/Users/gmecocci/projects/claude-plugins/plugins/claude-multiagent/zellij-plugins/zellij-attention/target/aarch64-apple-darwin/debug/deps/libcastaway-a460a97f3fee7b90.rmeta: /Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/castaway-0.2.4/src/lib.rs /Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/castaway-0.2.4/src/internal.rs /Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/castaway-0.2.4/src/lifetime_free.rs /Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/castaway-0.2.4/src/utils.rs
+
+/Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/castaway-0.2.4/src/lib.rs:
+/Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/castaway-0.2.4/src/internal.rs:
+/Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/castaway-0.2.4/src/lifetime_free.rs:
+/Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/castaway-0.2.4/src/utils.rs:

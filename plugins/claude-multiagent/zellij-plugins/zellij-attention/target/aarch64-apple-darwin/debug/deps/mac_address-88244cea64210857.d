@@ -1,0 +1,10 @@
+/Users/gmecocci/projects/claude-plugins/plugins/claude-multiagent/zellij-plugins/zellij-attention/target/aarch64-apple-darwin/debug/deps/mac_address-88244cea64210857.d: /Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/mac_address-1.1.8/src/lib.rs /Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/mac_address-1.1.8/src/linux.rs /Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/mac_address-1.1.8/src/iter/mod.rs /Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/mac_address-1.1.8/src/iter/linux.rs
+
+/Users/gmecocci/projects/claude-plugins/plugins/claude-multiagent/zellij-plugins/zellij-attention/target/aarch64-apple-darwin/debug/deps/libmac_address-88244cea64210857.rlib: /Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/mac_address-1.1.8/src/lib.rs /Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/mac_address-1.1.8/src/linux.rs /Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/mac_address-1.1.8/src/iter/mod.rs /Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/mac_address-1.1.8/src/iter/linux.rs
+
+/Users/gmecocci/projects/claude-plugins/plugins/claude-multiagent/zellij-plugins/zellij-attention/target/aarch64-apple-darwin/debug/deps/libmac_address-88244cea64210857.rmeta: /Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/mac_address-1.1.8/src/lib.rs /Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/mac_address-1.1.8/src/linux.rs /Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/mac_address-1.1.8/src/iter/mod.rs /Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/mac_address-1.1.8/src/iter/linux.rs
+
+/Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/mac_address-1.1.8/src/lib.rs:
+/Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/mac_address-1.1.8/src/linux.rs:
+/Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/mac_address-1.1.8/src/iter/mod.rs:
+/Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/mac_address-1.1.8/src/iter/linux.rs:

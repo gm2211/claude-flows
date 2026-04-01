@@ -1,0 +1,10 @@
+/Users/gmecocci/projects/claude-plugins/plugins/claude-multiagent/zellij-plugins/zellij-attention/target/wasm32-wasip1/release/deps/log-3f75b2cec64ec6b2.d: /Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/log-0.4.29/src/lib.rs /Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/log-0.4.29/src/macros.rs /Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/log-0.4.29/src/serde.rs /Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/log-0.4.29/src/__private_api.rs
+
+/Users/gmecocci/projects/claude-plugins/plugins/claude-multiagent/zellij-plugins/zellij-attention/target/wasm32-wasip1/release/deps/liblog-3f75b2cec64ec6b2.rlib: /Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/log-0.4.29/src/lib.rs /Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/log-0.4.29/src/macros.rs /Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/log-0.4.29/src/serde.rs /Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/log-0.4.29/src/__private_api.rs
+
+/Users/gmecocci/projects/claude-plugins/plugins/claude-multiagent/zellij-plugins/zellij-attention/target/wasm32-wasip1/release/deps/liblog-3f75b2cec64ec6b2.rmeta: /Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/log-0.4.29/src/lib.rs /Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/log-0.4.29/src/macros.rs /Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/log-0.4.29/src/serde.rs /Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/log-0.4.29/src/__private_api.rs
+
+/Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/log-0.4.29/src/lib.rs:
+/Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/log-0.4.29/src/macros.rs:
+/Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/log-0.4.29/src/serde.rs:
+/Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/log-0.4.29/src/__private_api.rs:

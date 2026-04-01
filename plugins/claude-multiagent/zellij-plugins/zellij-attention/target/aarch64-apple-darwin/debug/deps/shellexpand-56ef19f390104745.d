@@ -1,0 +1,10 @@
+/Users/gmecocci/projects/claude-plugins/plugins/claude-multiagent/zellij-plugins/zellij-attention/target/aarch64-apple-darwin/debug/deps/shellexpand-56ef19f390104745.d: /Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/shellexpand-3.1.2/src/lib.rs /Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/shellexpand-3.1.2/src/strings.rs /Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/shellexpand-3.1.2/src/wtraits.rs /Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/shellexpand-3.1.2/src/funcs.rs
+
+/Users/gmecocci/projects/claude-plugins/plugins/claude-multiagent/zellij-plugins/zellij-attention/target/aarch64-apple-darwin/debug/deps/libshellexpand-56ef19f390104745.rlib: /Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/shellexpand-3.1.2/src/lib.rs /Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/shellexpand-3.1.2/src/strings.rs /Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/shellexpand-3.1.2/src/wtraits.rs /Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/shellexpand-3.1.2/src/funcs.rs
+
+/Users/gmecocci/projects/claude-plugins/plugins/claude-multiagent/zellij-plugins/zellij-attention/target/aarch64-apple-darwin/debug/deps/libshellexpand-56ef19f390104745.rmeta: /Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/shellexpand-3.1.2/src/lib.rs /Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/shellexpand-3.1.2/src/strings.rs /Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/shellexpand-3.1.2/src/wtraits.rs /Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/shellexpand-3.1.2/src/funcs.rs
+
+/Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/shellexpand-3.1.2/src/lib.rs:
+/Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/shellexpand-3.1.2/src/strings.rs:
+/Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/shellexpand-3.1.2/src/wtraits.rs:
+/Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/shellexpand-3.1.2/src/funcs.rs:

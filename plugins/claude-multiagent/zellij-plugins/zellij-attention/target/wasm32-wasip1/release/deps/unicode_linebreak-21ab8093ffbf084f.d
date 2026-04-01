@@ -1,0 +1,9 @@
+/Users/gmecocci/projects/claude-plugins/plugins/claude-multiagent/zellij-plugins/zellij-attention/target/wasm32-wasip1/release/deps/unicode_linebreak-21ab8093ffbf084f.d: /Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/unicode-linebreak-0.1.5/src/lib.rs /Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/unicode-linebreak-0.1.5/src/shared.rs /Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/unicode-linebreak-0.1.5/src/tables.rs
+
+/Users/gmecocci/projects/claude-plugins/plugins/claude-multiagent/zellij-plugins/zellij-attention/target/wasm32-wasip1/release/deps/libunicode_linebreak-21ab8093ffbf084f.rlib: /Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/unicode-linebreak-0.1.5/src/lib.rs /Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/unicode-linebreak-0.1.5/src/shared.rs /Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/unicode-linebreak-0.1.5/src/tables.rs
+
+/Users/gmecocci/projects/claude-plugins/plugins/claude-multiagent/zellij-plugins/zellij-attention/target/wasm32-wasip1/release/deps/libunicode_linebreak-21ab8093ffbf084f.rmeta: /Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/unicode-linebreak-0.1.5/src/lib.rs /Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/unicode-linebreak-0.1.5/src/shared.rs /Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/unicode-linebreak-0.1.5/src/tables.rs
+
+/Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/unicode-linebreak-0.1.5/src/lib.rs:
+/Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/unicode-linebreak-0.1.5/src/shared.rs:
+/Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/unicode-linebreak-0.1.5/src/tables.rs:

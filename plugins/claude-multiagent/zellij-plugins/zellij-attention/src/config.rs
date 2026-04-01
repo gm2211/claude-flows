@@ -14,11 +14,10 @@ impl Default for NotificationConfig {
         Self {
             enabled: true,
             waiting_icon: "⏳".to_string(),
-            completed_icon: "✅".to_string(),
+            completed_icon: "✦".to_string(),
             spinner_frames: vec![
-                "⠋".to_string(), "⠙".to_string(), "⠹".to_string(), "⠸".to_string(),
-                "⠼".to_string(), "⠴".to_string(), "⠦".to_string(), "⠧".to_string(),
-                "⠇".to_string(), "⠏".to_string(),
+                "⣾".to_string(), "⣽".to_string(), "⣻".to_string(), "⢿".to_string(),
+                "⡿".to_string(), "⣟".to_string(), "⣯".to_string(), "⣷".to_string(),
             ],
             spinner_interval_ms: 100,
         }
@@ -71,9 +70,9 @@ mod tests {
         let config = NotificationConfig::default();
         assert!(config.enabled);
         assert_eq!(config.waiting_icon, "⏳");
-        assert_eq!(config.completed_icon, "✅");
-        assert_eq!(config.spinner_frames.len(), 10);
-        assert_eq!(config.spinner_frames[0], "⠋");
+        assert_eq!(config.completed_icon, "✦");
+        assert_eq!(config.spinner_frames.len(), 8);
+        assert_eq!(config.spinner_frames[0], "⣾");
         assert_eq!(config.spinner_interval_ms, 100);
     }
 
@@ -83,7 +82,7 @@ mod tests {
         let config = NotificationConfig::from_configuration(&config_map);
         assert!(config.enabled);
         assert_eq!(config.waiting_icon, "⏳");
-        assert_eq!(config.spinner_frames.len(), 10);
+        assert_eq!(config.spinner_frames.len(), 8);
     }
 
     #[test]
@@ -128,6 +127,6 @@ mod tests {
         config_map.insert("spinner_frames".to_string(), "".to_string());
         let config = NotificationConfig::from_configuration(&config_map);
         // Empty string should not replace the default frames
-        assert_eq!(config.spinner_frames.len(), 10);
+        assert_eq!(config.spinner_frames.len(), 8);
     }
 }

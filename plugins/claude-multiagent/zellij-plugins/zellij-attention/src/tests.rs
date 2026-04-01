@@ -29,7 +29,7 @@ fn test_strip_icons() {
     let state = State::default();
     // Legacy waiting_icon (⏳) should still be stripped
     assert_eq!(state.strip_icons("Tab 1 ⏳"), "Tab 1");
-    assert_eq!(state.strip_icons("Tab 1 ✅"), "Tab 1");
+    assert_eq!(state.strip_icons("Tab 1 ✦"), "Tab 1");
     assert_eq!(state.strip_icons("Tab 1 ⏳ ⏳"), "Tab 1");
     assert_eq!(state.strip_icons("Tab 1"), "Tab 1");
     assert_eq!(state.strip_icons(""), "");
@@ -39,21 +39,22 @@ fn test_strip_icons() {
 fn test_strip_icons_spinner_frames() {
     let state = State::default();
     // Braille spinner frames should be stripped
-    assert_eq!(state.strip_icons("Tab 1 ⠋"), "Tab 1");
-    assert_eq!(state.strip_icons("Tab 1 ⠙"), "Tab 1");
-    assert_eq!(state.strip_icons("Tab 1 ⠸"), "Tab 1");
-    assert_eq!(state.strip_icons("Tab 1 ⠏"), "Tab 1");
+    assert_eq!(state.strip_icons("Tab 1 ⣾"), "Tab 1");
+    assert_eq!(state.strip_icons("Tab 1 ⣽"), "Tab 1");
+    assert_eq!(state.strip_icons("Tab 1 ⢿"), "Tab 1");
+    assert_eq!(state.strip_icons("Tab 1 ⣷"), "Tab 1");
     // Should not strip mid-name occurrences
-    assert_eq!(state.strip_icons("⠋ Tab 1"), "⠋ Tab 1");
+    assert_eq!(state.strip_icons("⣾ Tab 1"), "⣾ Tab 1");
 }
 
 #[test]
 fn test_tab_name_has_icon() {
     let state = State::default();
     assert!(state.tab_name_has_icon("Tab 1 ⏳"));
-    assert!(state.tab_name_has_icon("Tab 1 ✅"));
+    assert!(state.tab_name_has_icon("Tab 1 ✦"));
     assert!(!state.tab_name_has_icon("Tab 1"));
     assert!(!state.tab_name_has_icon("⏳ Tab 1"));
+    assert!(!state.tab_name_has_icon("✦ Tab 1"));
 }
 
 #[test]
@@ -66,25 +67,25 @@ fn test_tab_name_has_icon_spinner_frames() {
     }
     // No false positives for prefix or unrelated suffix
     assert!(!state.tab_name_has_icon("Tab 1"));
-    assert!(!state.tab_name_has_icon("⠋ Tab 1"));
+    assert!(!state.tab_name_has_icon("⣾ Tab 1"));
 }
 
 #[test]
 fn test_spinner_frame_cycling() {
     let state = State::default();
     let frames = &state.config.spinner_frames;
-    assert_eq!(frames.len(), 10);
+    assert_eq!(frames.len(), 8);
 
-    // Verify all default braille frames are present
-    let expected = vec!["⠋","⠙","⠹","⠸","⠼","⠴","⠦","⠧","⠇","⠏"];
+    // Verify all default braille square frames are present
+    let expected = vec!["⣾","⣽","⣻","⢿","⡿","⣟","⣯","⣷"];
     for (i, expected_frame) in expected.iter().enumerate() {
         assert_eq!(&frames[i], expected_frame, "Frame {} mismatch", i);
     }
 
     // Verify modular indexing works correctly
-    assert_eq!(frames[0 % frames.len()], "⠋");
-    assert_eq!(frames[9 % frames.len()], "⠏");
-    assert_eq!(frames[10 % frames.len()], "⠋"); // wraps around
+    assert_eq!(frames[0 % frames.len()], "⣾");
+    assert_eq!(frames[7 % frames.len()], "⣷");
+    assert_eq!(frames[8 % frames.len()], "⣾"); // wraps around
 }
 
 #[test]
@@ -140,11 +141,42 @@ fn test_get_tab_notification_state_skips_plugin_panes() {
 }
 
 #[test]
-fn test_check_and_clear_focus() {
+fn test_check_and_clear_focus_does_not_clear_waiting() {
     let mut state = State::default();
     state.tabs = vec![make_tab(0, "Tab 1", true)];
     state.panes = make_manifest(vec![(0, vec![make_pane(5, false, true)])]);
     add_notification(&mut state, 5, NotificationType::Waiting);
+    assert!(!state.check_and_clear_focus());
+    assert!(state.notification_state.contains_key(&5));
+}
+
+#[test]
+fn test_check_and_clear_focus_clears_completed() {
+    let mut state = State::default();
+    state.tabs = vec![make_tab(0, "Tab 1", true)];
+    state.panes = make_manifest(vec![(0, vec![make_pane(5, false, true)])]);
+    add_notification(&mut state, 5, NotificationType::Completed);
     assert!(state.check_and_clear_focus());
     assert!(state.notification_state.is_empty());
+}
+
+#[test]
+fn test_completed_tabs_persists_after_pane_removal() {
+    let mut state = State::default();
+    // No panes in tab 0, but completed_tabs has it
+    state.completed_tabs.insert(0);
+    state.panes = make_manifest(vec![(0, vec![])]);
+    assert_eq!(state.get_tab_notification_state(0), Some(NotificationType::Completed));
+}
+
+#[test]
+fn test_completed_tabs_clears_on_active_tab() {
+    let mut state = State::default();
+    state.completed_tabs.insert(0);
+    state.tabs = vec![make_tab(0, "Tab 1", true)];
+    // Simulate what TabUpdate handler does
+    if let Some(active_tab) = state.tabs.iter().find(|t| t.active) {
+        state.completed_tabs.remove(&active_tab.position);
+    }
+    assert!(!state.completed_tabs.contains(&0));
 }

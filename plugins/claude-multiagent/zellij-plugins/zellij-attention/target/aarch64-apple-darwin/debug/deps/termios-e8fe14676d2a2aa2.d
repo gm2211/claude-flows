@@ -1,0 +1,10 @@
+/Users/gmecocci/projects/claude-plugins/plugins/claude-multiagent/zellij-plugins/zellij-attention/target/aarch64-apple-darwin/debug/deps/termios-e8fe14676d2a2aa2.d: /Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/termios-0.3.3/src/lib.rs /Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/termios-0.3.3/src/ffi.rs /Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/termios-0.3.3/src/os/mod.rs /Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/termios-0.3.3/src/os/macos.rs
+
+/Users/gmecocci/projects/claude-plugins/plugins/claude-multiagent/zellij-plugins/zellij-attention/target/aarch64-apple-darwin/debug/deps/libtermios-e8fe14676d2a2aa2.rlib: /Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/termios-0.3.3/src/lib.rs /Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/termios-0.3.3/src/ffi.rs /Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/termios-0.3.3/src/os/mod.rs /Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/termios-0.3.3/src/os/macos.rs
+
+/Users/gmecocci/projects/claude-plugins/plugins/claude-multiagent/zellij-plugins/zellij-attention/target/aarch64-apple-darwin/debug/deps/libtermios-e8fe14676d2a2aa2.rmeta: /Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/termios-0.3.3/src/lib.rs /Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/termios-0.3.3/src/ffi.rs /Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/termios-0.3.3/src/os/mod.rs /Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/termios-0.3.3/src/os/macos.rs
+
+/Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/termios-0.3.3/src/lib.rs:
+/Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/termios-0.3.3/src/ffi.rs:
+/Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/termios-0.3.3/src/os/mod.rs:
+/Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/termios-0.3.3/src/os/macos.rs:
