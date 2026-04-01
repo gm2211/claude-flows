@@ -45,6 +45,9 @@ while true; do
                 waiting)
                     zellij pipe --name "zellij-attention::waiting::$PANE_ID" 2>/dev/null || true
                     ;;
+                question)
+                    zellij pipe --name "zellij-attention::question::$PANE_ID" 2>/dev/null || true
+                    ;;
                 completed)
                     zellij pipe --name "zellij-attention::completed::$PANE_ID" 2>/dev/null || true
                     ;;

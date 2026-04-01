@@ -183,6 +183,8 @@ RUN git clone --filter=blob:none --branch=stable \
 
 COPY shell-configs/zsh-functions/ /home/agent/.config/zsh/
 COPY shell-configs/claude-status-line/ /home/agent/.config/claude-status-line/
+COPY --chown=1000:1000 shell-configs/claude-notify-hook.sh /home/agent/.local/bin/claude-notify-hook.sh
+RUN chmod +x /home/agent/.local/bin/claude-notify-hook.sh
 
 # Pre-download zjstatus/zjframes WASM plugins and rewrite configs to local paths
 RUN mkdir -p /home/agent/.config/zellij/plugins \
@@ -393,6 +395,38 @@ if command -v jq >/dev/null 2>&1 && [ -n "$DO_TOKEN" ]; then
   ')
   echo "$LOCAL_OBJ" | jq --argjson merge "$MERGE_OBJ" '. * $merge' \
     > "${SETTINGS_LOCAL}.tmp" && mv "${SETTINGS_LOCAL}.tmp" "$SETTINGS_LOCAL"
+fi
+
+# ── Notification hooks for zellij-attention ──
+HOOK_SCRIPT="/home/agent/.local/bin/claude-notify-hook.sh"
+if [ -x "$HOOK_SCRIPT" ]; then
+    HOOKS_JSON='{
+        "hooks": {
+            "PreToolUse": [
+                {
+                    "matcher": "AskUserQuestion",
+                    "hooks": [{"type": "command", "command": "'"$HOOK_SCRIPT"' question"}]
+                },
+                {
+                    "matcher": ".*",
+                    "hooks": [{"type": "command", "command": "'"$HOOK_SCRIPT"' waiting"}]
+                }
+            ],
+            "PostToolUse": [
+                {
+                    "matcher": ".*",
+                    "hooks": [{"type": "command", "command": "'"$HOOK_SCRIPT"' completed"}]
+                }
+            ]
+        }
+    }'
+    # Merge hooks into settings.json
+    if [ -f "$SETTINGS" ]; then
+        MERGED=$(jq -s '.[0] * .[1]' "$SETTINGS" <(echo "$HOOKS_JSON"))
+        echo "$MERGED" > "$SETTINGS"
+    else
+        echo "$HOOKS_JSON" > "$SETTINGS"
+    fi
 fi
 EOSCRIPT
 RUN chmod +x /home/agent/.local/bin/ensure-plugins.sh
