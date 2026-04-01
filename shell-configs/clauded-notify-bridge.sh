@@ -21,9 +21,6 @@ POLL_INTERVAL=2  # seconds
 # Ensure signal dir exists
 mkdir -p "$SIGNAL_DIR"
 
-# Track last signal to avoid duplicate zellij pipe calls
-last_signal=""
-
 cleanup() {
     zellij pipe --name "zellij-attention::completed::$PANE_ID" 2>/dev/null || true
     rm -f "$SIGNAL_FILE" 2>/dev/null
@@ -37,11 +34,14 @@ while true; do
         break
     fi
 
+    # Atomically consume the signal file: move then read, so no signal is
+    # lost or deduplicated away.  Fast tools may overwrite the file between
+    # polls, but we always process the latest state.
     if [ -f "$SIGNAL_FILE" ]; then
-        signal=$(cat "$SIGNAL_FILE" 2>/dev/null || true)
-        # Only act if signal changed
-        if [ -n "$signal" ] && [ "$signal" != "$last_signal" ]; then
-            last_signal="$signal"
+        tmp="$SIGNAL_FILE.$$"
+        if mv "$SIGNAL_FILE" "$tmp" 2>/dev/null; then
+            signal=$(cat "$tmp" 2>/dev/null || true)
+            rm -f "$tmp"
             case "$signal" in
                 waiting)
                     zellij pipe --name "zellij-attention::waiting::$PANE_ID" 2>/dev/null || true
@@ -49,18 +49,11 @@ while true; do
                 question)
                     zellij pipe --name "zellij-attention::question::$PANE_ID" 2>/dev/null || true
                     ;;
-                completed)
+                completed|clear)
                     zellij pipe --name "zellij-attention::completed::$PANE_ID" 2>/dev/null || true
-                    ;;
-                clear)
-                    zellij pipe --name "zellij-attention::completed::$PANE_ID" 2>/dev/null || true
-                    rm -f "$SIGNAL_FILE" 2>/dev/null
-                    last_signal=""
                     ;;
             esac
         fi
-    else
-        last_signal=""
     fi
 
     sleep "$POLL_INTERVAL"
