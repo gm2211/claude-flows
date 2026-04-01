@@ -247,6 +247,7 @@ alias gco='git checkout'
 alias gp='git push'
 alias gpu='git push -u'
 alias claude='command claude --dangerously-skip-permissions'
+alias cls='command claude --dangerously-skip-permissions'
 
 # Source custom functions
 [ -f ~/.config/zsh/functions.zsh ] && source ~/.config/zsh/functions.zsh
