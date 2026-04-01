@@ -1,9 +1,0 @@
-/Users/gmecocci/projects/claude-plugins/plugins/claude-multiagent/zellij-plugins/zellij-attention/target/aarch64-apple-darwin/debug/deps/tracing_futures-c48bd11a1f606eb1.d: /Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tracing-futures-0.2.5/src/lib.rs /Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tracing-futures-0.2.5/src/stdlib.rs /Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tracing-futures-0.2.5/src/executor/mod.rs
-
-/Users/gmecocci/projects/claude-plugins/plugins/claude-multiagent/zellij-plugins/zellij-attention/target/aarch64-apple-darwin/debug/deps/libtracing_futures-c48bd11a1f606eb1.rlib: /Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tracing-futures-0.2.5/src/lib.rs /Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tracing-futures-0.2.5/src/stdlib.rs /Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tracing-futures-0.2.5/src/executor/mod.rs
-
-/Users/gmecocci/projects/claude-plugins/plugins/claude-multiagent/zellij-plugins/zellij-attention/target/aarch64-apple-darwin/debug/deps/libtracing_futures-c48bd11a1f606eb1.rmeta: /Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tracing-futures-0.2.5/src/lib.rs /Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tracing-futures-0.2.5/src/stdlib.rs /Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tracing-futures-0.2.5/src/executor/mod.rs
-
-/Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tracing-futures-0.2.5/src/lib.rs:
-/Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tracing-futures-0.2.5/src/stdlib.rs:
-/Users/gmecocci/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tracing-futures-0.2.5/src/executor/mod.rs:
