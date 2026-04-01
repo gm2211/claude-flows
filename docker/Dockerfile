@@ -173,6 +173,9 @@ RUN chsh -s /bin/zsh agent
 COPY shell-configs/zellij/  /home/agent/.config/zellij/
 COPY shell-configs/nvim/    /home/agent/.config/nvim/
 
+# Sandbox companion skill — available to Claude inside sandbox
+COPY --chown=1000:1000 docker/commands/ /home/agent/.claude/commands/
+
 # Pre-clone lazy.nvim so nvim works offline inside the sandbox
 RUN git clone --filter=blob:none --branch=stable \
       https://github.com/folke/lazy.nvim.git \

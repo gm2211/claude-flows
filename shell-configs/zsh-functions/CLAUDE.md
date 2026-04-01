@@ -44,7 +44,7 @@ If you used a symlink (recommended), just pull the latest changes and reload you
 | `wt`       | Worktree selector menu. On the default branch, lists existing session worktrees and cd's into the chosen one. The menu also includes a built-in delete action (`[delete]`) so you can remove worktrees from the same flow. |
 | `wt new`   | Worktree creator subcommand. Offers a date-based session name (`session-YYYY-MM-DD`, with `-N` suffix for duplicates) or accepts a custom name. Creates the worktree and cd's into it. |
 | `wt delete [name]` | Worktree remover subcommand. Deletes a worktree under `.worktrees/` (interactive picker if `name` is omitted). Asks for confirmation before delete. |
-| `claude`   | Wraps `wt`/`wt new` for Claude Code. On the default branch, tries `wt` (selector) first; if that fails (no worktrees), falls back to `wt new` (creator); then launches Claude inside the chosen worktree. `claude --skip` / `claude -s` bypasses worktree checks and disables claude-multiagent hooks for that launch. |
+| `cl`       | Wraps `wt`/`wt new` for Claude Code. On the default branch, tries `wt` (selector) first; if that fails (no worktrees), falls back to `wt new` (creator); then launches Claude inside the chosen worktree. `cl --skip` / `cl -s` bypasses worktree checks. |
 | `clauded`  | Launches Claude inside a Docker sandbox using the `gm-claude-dev` custom template (zellij, nvim, starship, zsh). Runs `docker sandbox run -t gm-claude-dev claude`. |
 | `overwatch` / `ow` | Deploy dashboard TUI. Auto-clones `gm2211/overwatch` to `~/projects/overwatch` if missing, sets up a `.venv` with textual. |
 | `bdtui` / `bdt` | Beads TUI (issue tracker). Auto-clones `gm2211/beads-tui` to `~/projects/beads-tui` if missing, sets up a `.venv` with textual. |

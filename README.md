@@ -1,77 +1,22 @@
-# My Collection Of Claude Plugins
+# Claude Plugins & Shell Configs
 
-This repo / marketplaces will contain plugins I develop as I'm trying to hone my dev flow. 
+This repo contains shell configs (zsh functions, zellij, nvim, kitty, Docker sandbox templates) and a plugin marketplace for Claude Code.
+
 | :warning: WARNING           |
 |:----------------------------|
 | Maybe they work for you too, maybe they won't. |
 | Maybe they'll make claude hallucinate and wipe your computer 🤷 |
 | Install at your own risk. |
 
-# 1. claude-multiagent
+## Shell Configs
 
-A [Claude Code](https://docs.anthropic.com/en/docs/claude-code) plugin that turns Claude into an async coordinator -- it delegates all implementation to background sub-agents working in git worktrees while staying responsive to you.
+See [`shell-configs/CLAUDE.md`](shell-configs/CLAUDE.md) for setup instructions covering:
 
-> [!IMPORTANT]  
-> You have to remind Claude, every now and then, that it is a coordinator (I just say "yo, you're supposed to be the coordinator"). This is especially true in a new session, no matter how strongly worded the prompt in the hook for this plugin is.
-
-## Install
-
-```
-/plugin marketplace add gm2211/claude-plugins
-/plugin install claude-multiagent@gm2211-plugins
-```
-
-> **Note:** The marketplace name is `gm2211-plugins` (the repo can host multiple plugins). The plugin name is `claude-multiagent`.
-
-Deploy                     |  Github Actions
-:-------------------------:|:-------------------------:
-<img width="1980" height="1127" alt="deploy" src="https://github.com/user-attachments/assets/34c44815-5564-47d7-944f-e06e5eff489e" /> | <img width="1977" height="1115" alt="actions" src="https://github.com/user-attachments/assets/6b4c25df-076e-426e-9eba-d984ab09cd44" />
-
-
-
-## What You Get
-
-- **Async dispatch** -- describe work, Claude files a ticket and spawns a sub-agent, you keep talking to it (basically team mode, but without having to figure out team composition)
-- **Git worktree isolation** -- each agent works in `.worktrees/<branch>`, no interference
-- **Tickets and active agents dashboards** -- live ticket list + agent status panes alongside your Claude session
-- **Auto-cleanup** -- merge, remove worktree, close ticket, all in one step
-
-## Prerequisites
-
-- [Claude Code](https://docs.anthropic.com/en/docs/claude-code)
-- [Zellij](https://zellij.dev/) terminal multiplexer
-- [bd (beads)](https://github.com/gm2211/beads) issue tracker
-- Git
-
-## Required Permissions
-
-On first use in a repo, the plugin detects missing permissions and offers to configure `.claude/settings.local.json` automatically. Just approve the prompt and restart the session.
-
-<details>
-<summary>Manual setup (or reference)</summary>
-
-Add to your repo's `.claude/settings.local.json`:
-
-```json
-{
-  "permissions": {
-    "allow": ["Read", "Edit", "Write", "Bash(bd:*)", "Bash(git:*)"]
-  },
-  "sandbox": {
-    "enabled": true,
-    "autoAllowBashIfSandboxed": true
-  },
-  "env": {
-    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
-  }
-}
-```
-
-**Why this works:** `autoAllowBashIfSandboxed` auto-allows all bash commands within Claude's sandbox (filesystem restricted to repo dir, network restricted). `Read`/`Edit`/`Write` are explicitly allowed since they're not bash commands. `bd` and `git` are explicitly allowed for clarity.
-
-Add your own project-specific permissions (build tools, test runners, etc.) to the `allow` array.
-
-</details>
+- **kitty** terminal emulator config
+- **zellij** multiplexer config + layouts
+- **nvim** (AstroNvim) config
+- **zsh functions** — worktree manager (`wt`), Claude launcher (`cl`), Docker sandbox (`clauded`/`codexd`), and more
+- **Docker sandbox template** — custom `gm-claude-dev` image with zellij, nvim, starship, and dev tools
 
 ## License
 

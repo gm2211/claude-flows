@@ -841,51 +841,22 @@ EOF
   return $_exit
 }
 
-# Locate a script inside the claude-multiagent plugin directory.
-# Searches the marketplace install path (stable across versions).
-_find_multiagent_script() {
-  local name="$1" match
-  for match in ~/.claude/plugins/marketplaces/*/plugins/claude-multiagent/scripts/"$name"; do
-    [[ -x "$match" ]] && echo "$match" && return 0
-  done
-  return 1
-}
-
-
-# Open dashboard panes (if available) then launch claude.
-# Pane script is idempotent — safe to call on every launch.
-_claude_launch() {
-  if [[ "${CLAUDE_MULTIAGENT_DISABLE:-}" != "1" ]]; then
-    local _ds
-    _ds="$(_find_multiagent_script "open-dashboard.sh" 2>/dev/null)" || true
-    if [[ -n "$_ds" ]]; then
-      "$_ds" "$PWD" &>/dev/null &
-      disown 2>/dev/null
-    fi
-  fi
-  command claude "$@"
-}
-
 # codex() — launch Codex with safer defaults for Zellij/terminal redraw issues.
 # In interactive sessions, prefer the main screen buffer unless the caller
 # explicitly requested otherwise.
 codex() {
-  local _codex_args=()
   local _has_alt_flag=0
   local _arg
   for _arg in "$@"; do
     case "$_arg" in
-      --no-alt-screen|--alt-screen)
-        _has_alt_flag=1
-        ;;
+      --no-alt-screen|--alt-screen) _has_alt_flag=1 ;;
     esac
-    _codex_args+=("$_arg")
   done
 
   if [[ -t 0 && -t 1 && $_has_alt_flag -eq 0 ]]; then
-    command codex --no-alt-screen "${_codex_args[@]}"
+    command codex --no-alt-screen "$@"
   else
-    command codex "${_codex_args[@]}"
+    command codex "$@"
   fi
 }
 
@@ -911,7 +882,7 @@ codex() {
 
 cl() {
   #############################################################################
-  # --skip / -s flag: bypass worktree check and disable multiagent plugin
+  # --skip / -s flag: bypass worktree check
   #############################################################################
 
   local _claude_args=()
@@ -924,11 +895,11 @@ cl() {
   done
 
   if [ "$_skip_worktree" -eq 1 ]; then
-    CLAUDE_MULTIAGENT_DISABLE=1 _claude_launch "${_claude_args[@]}"
+    command claude "${_claude_args[@]}"
     return $?
   fi
 
-  ###########################################################################  
+  #############################################################################
   # Case 1: Not a git repo → pass through
   #############################################################################
 
@@ -945,12 +916,11 @@ cl() {
   git_dir="$(git rev-parse --git-dir 2>/dev/null)"
   git_common_dir="$(git rev-parse --git-common-dir 2>/dev/null)"
 
-  # Normalize to absolute paths for reliable comparison
   abs_git_dir="$(cd "$git_dir" && pwd)"
   abs_git_common="$(cd "$git_common_dir" && pwd)"
 
   if [ "$abs_git_dir" != "$abs_git_common" ]; then
-    _claude_launch "$@"
+    command claude "$@"
     return $?
   fi
 
@@ -959,10 +929,8 @@ cl() {
   #############################################################################
 
   local default_branch current_branch
-  # Detect the default branch dynamically
   default_branch="$(git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's|refs/remotes/origin/||')"
   if [ -z "$default_branch" ]; then
-    # Fallback: check if main or master exists
     if git show-ref --verify --quiet refs/heads/main 2>/dev/null; then
       default_branch="main"
     elif git show-ref --verify --quiet refs/heads/master 2>/dev/null; then
@@ -975,7 +943,7 @@ cl() {
   current_branch="$(git symbolic-ref --short HEAD 2>/dev/null || echo "")"
 
   if [ "$current_branch" != "$default_branch" ]; then
-    _claude_launch "$@"
+    command claude "$@"
     return $?
   fi
 
@@ -987,16 +955,9 @@ cl() {
   printf '%s\n' "You are on the '$default_branch' branch. Claude should run in a worktree." >&2
   printf '%s\n' "" >&2
 
-  # Try selector first; if it fails (no worktrees or user cancels), offer creation.
-  # Do NOT wrap wt in a subshell — a subshell loses both the TTY context required
-  # for fzf/read AND the cd that switches into the chosen worktree.
-  # Calling wt directly (as a shell function) lets cd propagate to this shell.
   { wt || wt new; } || return 1
 
   # Verify we actually ended up inside a worktree after wt ran.
-  # wt() Cases 2 and 3 return 0 (success) without cd-ing (they signal "nothing to
-  # do"), which would cause claude to launch in the original non-worktree directory.
-  # Re-checking the worktree condition here ensures the cd took effect.
   local post_git_dir post_git_common_dir abs_post_git_dir abs_post_git_common
   post_git_dir="$(git rev-parse --git-dir 2>/dev/null)"
   post_git_common_dir="$(git rev-parse --git-common-dir 2>/dev/null)"
@@ -1008,7 +969,7 @@ cl() {
     return 1
   fi
 
-  _claude_launch "$@"
+  command claude "$@"
 }
 
 # clauded() — Launch Claude inside a Docker sandbox with custom dev environment.
@@ -1041,8 +1002,9 @@ clauded() {
 
   # Load env var names from file (explicit flag or default path).
   # File contains one env var NAME per line; values are resolved from the host.
-  local _env_names_file="${_env_file_flag:-$HOME/.claude/sandbox.env}"
-  if [ -f "$_env_names_file" ]; then
+  # Sources: --env-from-file flag, ~/.claude/sandbox.env, and ./clauded.env
+  _clauded_load_env_names() {
+    local _src="$1"
     while IFS= read -r _name || [ -n "$_name" ]; do
       _name="${_name%%#*}"          # strip inline comments
       _name="${_name// /}"          # strip whitespace
@@ -1051,10 +1013,23 @@ clauded() {
       if [ -n "$_val" ]; then
         _env_vars+=("${_name}=${_val}")
       fi
-    done < "$_env_names_file"
+    done < "$_src"
+  }
+
+  local _env_names_file="${_env_file_flag:-$HOME/.claude/sandbox.env}"
+  if [ -f "$_env_names_file" ]; then
+    _clauded_load_env_names "$_env_names_file"
   elif [ -n "$_env_file_flag" ]; then
     printf '\033[1;33m[clauded]\033[0m Env file not found: %s\n' "$_env_file_flag"
   fi
+
+  # Per-folder env file: if a clauded.env exists in CWD, load it too
+  if [ -f "clauded.env" ] && [ "$(pwd -P)/clauded.env" != "$(cd "$(dirname "$_env_names_file")" && pwd -P)/$(basename "$_env_names_file")" ]; then
+    printf '\033[90m[clauded] Loading env vars from ./clauded.env\033[0m\n'
+    _clauded_load_env_names "clauded.env"
+  fi
+
+  unfunction _clauded_load_env_names 2>/dev/null
 
   # Compute content hash of Dockerfile + all COPY'd source directories
   _clauded_content_hash() {
