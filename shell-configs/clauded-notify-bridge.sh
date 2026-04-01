@@ -25,6 +25,7 @@ mkdir -p "$SIGNAL_DIR"
 last_signal=""
 
 cleanup() {
+    zellij pipe --name "zellij-attention::completed::$PANE_ID" 2>/dev/null || true
     rm -f "$SIGNAL_FILE" 2>/dev/null
     exit 0
 }
