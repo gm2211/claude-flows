@@ -31,6 +31,7 @@ fn test_strip_icons() {
     assert_eq!(state.strip_icons("Tab 1 ⏳"), "Tab 1");
     assert_eq!(state.strip_icons("Tab 1 ✦"), "Tab 1");
     assert_eq!(state.strip_icons("Tab 1 ⏳ ⏳"), "Tab 1");
+    assert_eq!(state.strip_icons("Tab 1 ?"), "Tab 1");
     assert_eq!(state.strip_icons("Tab 1"), "Tab 1");
     assert_eq!(state.strip_icons(""), "");
 }
@@ -52,9 +53,11 @@ fn test_tab_name_has_icon() {
     let state = State::default();
     assert!(state.tab_name_has_icon("Tab 1 ⏳"));
     assert!(state.tab_name_has_icon("Tab 1 ✦"));
+    assert!(state.tab_name_has_icon("Tab 1 ?"));
     assert!(!state.tab_name_has_icon("Tab 1"));
     assert!(!state.tab_name_has_icon("⏳ Tab 1"));
     assert!(!state.tab_name_has_icon("✦ Tab 1"));
+    assert!(!state.tab_name_has_icon("? Tab 1"));
 }
 
 #[test]
@@ -179,4 +182,88 @@ fn test_completed_tabs_clears_on_active_tab() {
         state.completed_tabs.remove(&active_tab.position);
     }
     assert!(!state.completed_tabs.contains(&0));
+}
+
+#[test]
+fn test_question_notification_shows_icon() {
+    let mut state = State::default();
+    state.panes = make_manifest(vec![(0, vec![make_pane(1, false, false)])]);
+    add_notification(&mut state, 1, NotificationType::Question);
+    assert_eq!(state.get_tab_notification_state(0), Some(NotificationType::Question));
+}
+
+#[test]
+fn test_question_not_cleared_on_focus() {
+    let mut state = State::default();
+    state.tabs = vec![make_tab(0, "Tab 1", true)];
+    state.panes = make_manifest(vec![(0, vec![make_pane(5, false, true)])]);
+    add_notification(&mut state, 5, NotificationType::Question);
+    // check_and_clear_focus only clears Completed, not Question
+    assert!(!state.check_and_clear_focus());
+    assert!(state.notification_state.contains_key(&5));
+}
+
+#[test]
+fn test_question_not_cleared_on_tab_select() {
+    let mut state = State::default();
+    state.question_tabs.insert(0);
+    state.panes = make_manifest(vec![(0, vec![])]);
+    // Simulate what TabUpdate handler does for completed_tabs but NOT for question_tabs
+    // question_tabs should still contain 0
+    assert!(state.question_tabs.contains(&0));
+    assert_eq!(state.get_tab_notification_state(0), Some(NotificationType::Question));
+}
+
+#[test]
+fn test_question_replaced_by_completed() {
+    let mut state = State::default();
+    state.question_tabs.insert(0);
+    state.panes = make_manifest(vec![(0, vec![make_pane(1, false, false)])]);
+    // When COMPLETED arrives, question_tabs should be cleared for that tab
+    state.question_tabs.remove(&0);
+    state.completed_tabs.insert(0);
+    add_notification(&mut state, 1, NotificationType::Completed);
+    assert!(!state.question_tabs.contains(&0));
+    assert_eq!(state.get_tab_notification_state(0), Some(NotificationType::Completed));
+}
+
+#[test]
+fn test_question_replaced_by_waiting() {
+    let mut state = State::default();
+    state.question_tabs.insert(0);
+    state.panes = make_manifest(vec![(0, vec![make_pane(1, false, false)])]);
+    // When WAITING arrives, question_tabs should be cleared for that tab
+    state.question_tabs.remove(&0);
+    add_notification(&mut state, 1, NotificationType::Waiting);
+    assert!(!state.question_tabs.contains(&0));
+    assert_eq!(state.get_tab_notification_state(0), Some(NotificationType::Waiting));
+}
+
+#[test]
+fn test_question_tabs_persists_after_pane_removal() {
+    let mut state = State::default();
+    state.question_tabs.insert(0);
+    state.panes = make_manifest(vec![(0, vec![])]);
+    // question_tabs should persist even when pane is gone
+    assert_eq!(state.get_tab_notification_state(0), Some(NotificationType::Question));
+}
+
+#[test]
+fn test_question_priority_over_completed() {
+    let mut state = State::default();
+    state.panes = make_manifest(vec![(0, vec![make_pane(1, false, false), make_pane(2, false, false)])]);
+    add_notification(&mut state, 1, NotificationType::Question);
+    add_notification(&mut state, 2, NotificationType::Completed);
+    // Question wins over Completed
+    assert_eq!(state.get_tab_notification_state(0), Some(NotificationType::Question));
+}
+
+#[test]
+fn test_waiting_priority_over_question() {
+    let mut state = State::default();
+    state.panes = make_manifest(vec![(0, vec![make_pane(1, false, false), make_pane(2, false, false)])]);
+    add_notification(&mut state, 1, NotificationType::Waiting);
+    add_notification(&mut state, 2, NotificationType::Question);
+    // Waiting wins over Question
+    assert_eq!(state.get_tab_notification_state(0), Some(NotificationType::Waiting));
 }

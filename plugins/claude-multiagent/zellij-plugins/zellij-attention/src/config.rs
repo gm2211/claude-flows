@@ -5,6 +5,7 @@ pub struct NotificationConfig {
     pub enabled: bool,
     pub waiting_icon: String,
     pub completed_icon: String,
+    pub question_icon: String,
     pub spinner_frames: Vec<String>,
     pub spinner_interval_ms: u64,
 }
@@ -15,6 +16,7 @@ impl Default for NotificationConfig {
             enabled: true,
             waiting_icon: "⏳".to_string(),
             completed_icon: "✦".to_string(),
+            question_icon: "?".to_string(),
             spinner_frames: vec![
                 "⣾".to_string(), "⣽".to_string(), "⣻".to_string(), "⢿".to_string(),
                 "⡿".to_string(), "⣟".to_string(), "⣯".to_string(), "⣷".to_string(),
@@ -41,6 +43,12 @@ impl NotificationConfig {
                 eprintln!("zellij-attention: Warning: completed_icon '{}' is longer than 4 chars", icon);
             }
             result.completed_icon = icon.clone();
+        }
+        if let Some(icon) = config.get("question_icon") {
+            if icon.chars().count() > 4 {
+                eprintln!("zellij-attention: Warning: question_icon '{}' is longer than 4 chars", icon);
+            }
+            result.question_icon = icon.clone();
         }
         if let Some(frames_str) = config.get("spinner_frames") {
             let frames: Vec<String> = frames_str

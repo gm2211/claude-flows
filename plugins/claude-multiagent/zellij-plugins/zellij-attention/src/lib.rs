@@ -24,6 +24,7 @@ pub struct State {
     pub(crate) spinner_index: usize,
     timer_running: bool,
     pub(crate) completed_tabs: std::collections::HashSet<usize>,
+    pub(crate) question_tabs: std::collections::HashSet<usize>,
 }
 
 impl State {
@@ -69,6 +70,10 @@ impl State {
         if name.ends_with(&completed_suffix) {
             return true;
         }
+        let question_suffix = format!(" {}", self.config.question_icon);
+        if name.ends_with(&question_suffix) {
+            return true;
+        }
         // Check all spinner frames
         for frame in &self.config.spinner_frames {
             let suffix = format!(" {}", frame);
@@ -90,6 +95,11 @@ impl State {
         let completed_suffix = format!(" {}", self.config.completed_icon);
         while result.ends_with(&completed_suffix) {
             result.truncate(result.len() - completed_suffix.len());
+        }
+        // Strip question icon
+        let question_suffix = format!(" {}", self.config.question_icon);
+        while result.ends_with(&question_suffix) {
+            result.truncate(result.len() - question_suffix.len());
         }
         // Strip legacy waiting_icon
         let waiting_suffix = format!(" {}", self.config.waiting_icon);
@@ -114,6 +124,7 @@ impl State {
     pub(crate) fn get_tab_notification_state(&self, tab_position: usize) -> Option<NotificationType> {
         let panes = self.panes.panes.get(&tab_position)?;
         let mut has_completed = false;
+        let mut has_question = false;
         for pane in panes {
             if pane.is_plugin { continue; }
             if let Some(&notification) = self.notification_state.get(&pane.id) {
@@ -123,7 +134,16 @@ impl State {
                 if notification == NotificationType::Completed {
                     has_completed = true;
                 }
+                if notification == NotificationType::Question {
+                    has_question = true;
+                }
             }
+        }
+        if has_question {
+            return Some(NotificationType::Question);
+        }
+        if self.question_tabs.contains(&tab_position) {
+            return Some(NotificationType::Question);
         }
         if has_completed {
             return Some(NotificationType::Completed);
@@ -200,6 +220,7 @@ impl State {
                 let icon = match notification {
                     NotificationType::Waiting => &spinner_frame,
                     NotificationType::Completed => &self.config.completed_icon,
+                    NotificationType::Question => &self.config.question_icon,
                 };
                 let original = self.original_tab_names.get(&tab.position)
                     .cloned().unwrap_or_else(|| format!("Tab #{}", tab.position + 1));
@@ -251,6 +272,7 @@ impl State {
             self.original_tab_names.retain(|pos, _| valid_positions.contains(pos));
             self.pending_strips.retain(|pos| valid_positions.contains(pos));
             self.completed_tabs.retain(|pos| valid_positions.contains(pos));
+            self.question_tabs.retain(|pos| valid_positions.contains(pos));
         }
 
         self.updating_tabs = false;
@@ -365,6 +387,7 @@ impl ZellijPlugin for State {
         let notification_type = match event_type.to_lowercase().as_str() {
             "waiting" => NotificationType::Waiting,
             "completed" => NotificationType::Completed,
+            "question" => NotificationType::Question,
             unknown => {
                 eprintln!("zellij-attention: Unknown event type: {}\n", unknown);
                 unblock_cli_pipe_input(&pipe_message.name);
@@ -376,17 +399,32 @@ impl ZellijPlugin for State {
 
         self.notification_state.insert(pane_id, notification_type);
 
+        // Find which tab this pane belongs to
+        let pane_tab_pos: Option<usize> = self.panes.panes.iter()
+            .find(|(_, panes)| panes.iter().any(|p| p.id == pane_id && !p.is_plugin))
+            .map(|(tab_pos, _)| *tab_pos);
+
         if notification_type == NotificationType::Completed {
             // Track at tab level so it survives pane closure
-            for (tab_pos, panes) in &self.panes.panes {
-                if panes.iter().any(|p| p.id == pane_id && !p.is_plugin) {
-                    self.completed_tabs.insert(*tab_pos);
-                    break;
-                }
+            if let Some(tab_pos) = pane_tab_pos {
+                self.completed_tabs.insert(tab_pos);
+                // Replace any question state for this tab
+                self.question_tabs.remove(&tab_pos);
+            }
+        }
+
+        if notification_type == NotificationType::Question {
+            // Track at tab level so it survives pane closure
+            if let Some(tab_pos) = pane_tab_pos {
+                self.question_tabs.insert(tab_pos);
             }
         }
 
         if notification_type == NotificationType::Waiting {
+            // Replace any question state for this tab
+            if let Some(tab_pos) = pane_tab_pos {
+                self.question_tabs.remove(&tab_pos);
+            }
             self.start_spinner_timer();
         }
 
