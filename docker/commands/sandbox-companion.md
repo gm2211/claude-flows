@@ -50,7 +50,7 @@ lockdown() {
 
     if [[ "$perms" != "444" || "$owner" != "root" ]]; then
         echo "[companion] This script is not locked down yet."
-        echo "[companion] Locking: chmod 444 + chown root"
+        echo "[companion] Locking: chmod 444 + chown root + immutable flag"
         echo ""
 
         # Detect OS for correct group
@@ -61,7 +61,14 @@ lockdown() {
         fi
         sudo chmod 444 "$SCRIPT_PATH"
 
-        echo "[companion] Locked. Re-run with: bash $SCRIPT_PATH"
+        # Set system immutable flag — prevents overwrite even by Write tool
+        if [[ "$(uname)" == "Darwin" ]]; then
+            sudo chflags schg "$SCRIPT_PATH"
+        else
+            sudo chattr +i "$SCRIPT_PATH" 2>/dev/null || true
+        fi
+
+        echo "[companion] Locked (immutable). Re-run with: bash $SCRIPT_PATH"
         exit 0
     fi
 }
@@ -96,20 +103,25 @@ unlock() {
     perms=$(stat -f "%OLp" "$SCRIPT_PATH" 2>/dev/null || stat -c "%a" "$SCRIPT_PATH" 2>/dev/null)
     owner=$(stat -f "%Su" "$SCRIPT_PATH" 2>/dev/null || stat -c "%U" "$SCRIPT_PATH" 2>/dev/null)
 
-    if [[ "$perms" == "444" && "$owner" == "root" ]]; then
-        local target_user
-        target_user="${SUDO_USER:-$USER}"
-        echo "[companion] Unlocking for editing..."
-        if [[ "$(uname)" == "Darwin" ]]; then
-            sudo chown "$target_user:staff" "$SCRIPT_PATH"
-        else
-            sudo chown "$target_user:$target_user" "$SCRIPT_PATH"
-        fi
-        sudo chmod 644 "$SCRIPT_PATH"
-        echo "[companion] Unlocked. Edit the script, then run again to re-lock."
+    local target_user
+    target_user="${SUDO_USER:-$USER}"
+    echo "[companion] Unlocking for editing..."
+
+    # Remove immutable flag first
+    if [[ "$(uname)" == "Darwin" ]]; then
+        sudo chflags noschg "$SCRIPT_PATH" 2>/dev/null || true
     else
-        echo "[companion] Script is not locked — nothing to do."
+        sudo chattr -i "$SCRIPT_PATH" 2>/dev/null || true
     fi
+
+    # Restore write permissions
+    if [[ "$(uname)" == "Darwin" ]]; then
+        sudo chown "$target_user:staff" "$SCRIPT_PATH"
+    else
+        sudo chown "$target_user:$target_user" "$SCRIPT_PATH"
+    fi
+    sudo chmod 644 "$SCRIPT_PATH"
+    echo "[companion] Unlocked. Edit the script, then run again to re-lock."
     exit 0
 }
 
@@ -202,8 +214,9 @@ cat /path/to/.companion_agent/result
 - Input sanitized to `[a-z-]` — no metacharacters, no injection
 - Fixed enum of commands — no arbitrary execution
 - No eval, no argument passing, no shell expansion
-- Script owned by root, mode 444 — Claude cannot modify it
-- Self-locking on first run — user doesn't need to remember chmod/chown steps
+- Script owned by root, mode 444, immutable flag (schg/+i) — Claude cannot modify or overwrite it
+- Self-locking on first run — user doesn't need to remember chmod/chown/chflags steps
+- Unlock command (`bash script.sh unlock`) removes immutable flag and restores write permissions
 
 ## Anti-patterns to avoid
 
