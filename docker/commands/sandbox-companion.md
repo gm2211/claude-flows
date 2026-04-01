@@ -88,6 +88,32 @@ run_command() {
 }
 
 # ──────────────────────────────────────────────
+# Unlock: restore write permissions for editing
+# Usage: bash companion.sh unlock
+# ──────────────────────────────────────────────
+unlock() {
+    local perms owner
+    perms=$(stat -f "%OLp" "$SCRIPT_PATH" 2>/dev/null || stat -c "%a" "$SCRIPT_PATH" 2>/dev/null)
+    owner=$(stat -f "%Su" "$SCRIPT_PATH" 2>/dev/null || stat -c "%U" "$SCRIPT_PATH" 2>/dev/null)
+
+    if [[ "$perms" == "444" && "$owner" == "root" ]]; then
+        local target_user
+        target_user="${SUDO_USER:-$USER}"
+        echo "[companion] Unlocking for editing..."
+        if [[ "$(uname)" == "Darwin" ]]; then
+            sudo chown "$target_user:staff" "$SCRIPT_PATH"
+        else
+            sudo chown "$target_user:$target_user" "$SCRIPT_PATH"
+        fi
+        sudo chmod 644 "$SCRIPT_PATH"
+        echo "[companion] Unlocked. Edit the script, then run again to re-lock."
+    else
+        echo "[companion] Script is not locked — nothing to do."
+    fi
+    exit 0
+}
+
+# ──────────────────────────────────────────────
 # Core loop — do not modify below this line
 # ──────────────────────────────────────────────
 cleanup() {
@@ -97,6 +123,11 @@ cleanup() {
     exit 0
 }
 trap cleanup EXIT INT TERM
+
+# Handle subcommands
+case "${1:-}" in
+    unlock) unlock ;;
+esac
 
 lockdown
 
@@ -151,6 +182,7 @@ Tell the user to:
 2. Run it once: `bash <script>.sh` — it will self-lock (chmod 444, chown root) and exit
 3. Run it again: `bash <script>.sh` — now it runs the watch loop
 4. Add `.companion_agent/` to `.gitignore`
+5. To edit later: `bash <script>.sh unlock` — restores write permissions, then re-run to re-lock
 
 ### Step 5: Claude usage
 
