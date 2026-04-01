@@ -5,65 +5,6 @@
 # Use:    docker sandbox run -t gm-claude-dev claude .
 # =============================================================================
 
-# =============================================================================
-# Stage 1: Builder — prepare claude-multiagent plugin cache
-# =============================================================================
-FROM ubuntu:24.04 AS builder
-
-RUN apt-get update && apt-get install -y --no-install-recommends \
-        ca-certificates curl git jq unzip \
-    && rm -rf /var/lib/apt/lists/*
-
-RUN git clone https://github.com/gm2211/claude-plugins.git /plugin-src \
-    && cd /plugin-src \
-    && git submodule update --init --recursive
-
-RUN <<'BUILDER_SCRIPT'
-set -eux
-VERSION=$(jq -r '.plugins[] | select(.name=="claude-multiagent") | .version' \
-          /plugin-src/.claude-plugin/marketplace.json)
-
-CACHE_DIR="/plugin-cache/cache/gm2211-plugins/claude-multiagent/${VERSION}"
-mkdir -p "${CACHE_DIR}"
-cp -a /plugin-src/plugins/claude-multiagent/. "${CACHE_DIR}/"
-
-cat > /plugin-cache/installed_plugins.json <<EOJSON
-{
-  "version": 2,
-  "plugins": {
-    "claude-multiagent@gm2211-plugins": [
-      {
-        "scope": "user",
-        "installPath": "/home/agent/.claude/plugins/cache/gm2211-plugins/claude-multiagent/${VERSION}",
-        "version": "${VERSION}",
-        "installedAt": "2026-01-01T00:00:00.000Z",
-        "lastUpdated": "2026-01-01T00:00:00.000Z",
-        "gitCommitSha": "HEAD"
-      }
-    ]
-  }
-}
-EOJSON
-
-cat > /plugin-cache/known_marketplaces.json <<EOJSON
-{
-  "gm2211-plugins": {
-    "source": {
-      "source": "github",
-      "repo": "gm2211/claude-plugins"
-    },
-    "installLocation": "/home/agent/.claude/plugins/marketplaces/gm2211-plugins",
-    "lastUpdated": "2026-01-01T00:00:00.000Z"
-  }
-}
-EOJSON
-
-echo "${VERSION}" > /plugin-cache/.plugin-version
-BUILDER_SCRIPT
-
-# =============================================================================
-# Stage 2: Custom sandbox template
-# =============================================================================
 FROM docker/sandbox-templates:claude-code
 
 USER root
@@ -306,11 +247,6 @@ alias claude='command claude --dangerously-skip-permissions'
 [ -f ~/.config/zsh/functions.zsh ] && source ~/.config/zsh/functions.zsh
 EOZSH
 
-# ---------------------------------------------------------------------------
-# claude-multiagent plugin (from builder stage)
-# ---------------------------------------------------------------------------
-COPY --from=builder /plugin-cache/ /home/agent/.claude/plugins/
-
 # Ensure sandbox-local Claude settings are applied at startup.
 # Docker sandbox may rewrite settings.json on creation, so we keep our runtime
 # overrides in settings.local.json wherever possible.
@@ -350,6 +286,12 @@ for VAR in DIGITALOCEAN_API_TOKEN GH_TOKEN; do
   eval "VAL=\${$VAR:-}"
   [ -n "$VAL" ] && printf 'export %s="%s"\n' "$VAR" "$VAL" >> "$SANDBOX_ENV"
 done
+# Alias the DO token under every common name so doctl / curl / agents all work
+if [ -n "${DIGITALOCEAN_API_TOKEN:-}" ]; then
+  for ALIAS in DIGITALOCEAN_TOKEN DIGITALOCEAN_ACCESS_TOKEN; do
+    printf 'export %s="%s"\n' "$ALIAS" "$DIGITALOCEAN_API_TOKEN" >> "$SANDBOX_ENV"
+  done
+fi
 chmod 600 "$SANDBOX_ENV"
 
 # Docker sandbox create injects apiKeyHelper:"echo proxy-managed" into
@@ -396,7 +338,7 @@ for BEADS_DIR in $(find /Users /home -maxdepth 4 -name ".beads" -type d 2>/dev/n
   fi
 done
 
-# sp (specify) — find mounted host repo or clone, then create /usr/local/bin/sp
+# sp (specify) — find mounted host repo or clone, then create ~/.local/bin/sp
 # Always use a node wrapper (not symlink to specify wrapper) because the host
 # repo is mounted read-only and the wrapper's auto-build would fail.
 SP_DIR=$(find /Users /home -maxdepth 4 -path "*/projects/specify" -type d -exec test -f "{}/package.json" \; -print 2>/dev/null | head -1)
@@ -409,11 +351,12 @@ if [ -z "$SP_DIR" ]; then
   fi
 fi
 if [ -d "$SP_DIR" ] && [ -f "$SP_DIR/dist/src/cli/index.js" ]; then
-  cat > /usr/local/bin/sp <<EOSP
+  mkdir -p "$HOME/.local/bin"
+  cat > "$HOME/.local/bin/sp" <<EOSP
 #!/bin/sh
 exec node "$SP_DIR/dist/src/cli/index.js" "\$@"
 EOSP
-  chmod +x /usr/local/bin/sp
+  chmod +x "$HOME/.local/bin/sp"
 fi
 
 # ---------------------------------------------------------------------------
@@ -428,45 +371,28 @@ if [ -f "$SANDBOX_SL" ] && command -v jq >/dev/null 2>&1; then
     > "${SETTINGS_LOCAL}.tmp" && mv "${SETTINGS_LOCAL}.tmp" "$SETTINGS_LOCAL"
 fi
 
-# Merge plugin settings (enabledPlugins, mcpServers)
+# Merge MCP server config into settings.local.json
 DO_TOKEN="${DIGITALOCEAN_API_TOKEN:-}"
 
-# Write plugin/mcp config to settings.local.json (sandbox overlay, not host settings)
 LOCAL_OBJ='{}'
 [ -f "$SETTINGS_LOCAL" ] && LOCAL_OBJ=$(cat "$SETTINGS_LOCAL")
-if command -v jq >/dev/null 2>&1; then
+if command -v jq >/dev/null 2>&1 && [ -n "$DO_TOKEN" ]; then
   MERGE_OBJ=$(jq -n --arg do_token "$DO_TOKEN" '
     {
-      enabledPlugins: {
-        "claude-multiagent@gm2211-plugins": true
-      },
       mcpServers: {
         digitalocean: {
           command: "npx",
           args: ["-y", "@digitalocean/mcp"],
-          env: (if $do_token == "" then {} else {DIGITALOCEAN_API_TOKEN: $do_token} end)
+          env: {DIGITALOCEAN_API_TOKEN: $do_token}
         }
       }
     }
   ')
   echo "$LOCAL_OBJ" | jq --argjson merge "$MERGE_OBJ" '. * $merge' \
     > "${SETTINGS_LOCAL}.tmp" && mv "${SETTINGS_LOCAL}.tmp" "$SETTINGS_LOCAL"
-else
-  printf '%s\n' '{"enabledPlugins":{"claude-multiagent@gm2211-plugins":true}}' > "$SETTINGS_LOCAL"
 fi
 EOSCRIPT
 RUN chmod +x /home/agent/.local/bin/ensure-plugins.sh
-
-# beads-tui Python venv
-RUN set -eux; \
-    VERSION=$(cat /home/agent/.claude/plugins/.plugin-version); \
-    BEADS_TUI_DIR="/home/agent/.claude/plugins/cache/gm2211-plugins/claude-multiagent/${VERSION}/scripts/beads-tui"; \
-    VENV_DIR="/home/agent/.claude/plugins/cache/gm2211-plugins/claude-multiagent/${VERSION}/scripts/.beads-tui-venv"; \
-    python3 -m venv "${VENV_DIR}"; \
-    "${VENV_DIR}/bin/pip" install --no-cache-dir "textual>=8.0.0"; \
-    if [ -f "${BEADS_TUI_DIR}/pyproject.toml" ]; then \
-        "${VENV_DIR}/bin/pip" install --no-cache-dir "${BEADS_TUI_DIR}"; \
-    fi
 
 # ---------------------------------------------------------------------------
 # Git credential helper — use gh CLI for HTTPS auth (needs GH_TOKEN env var)
@@ -484,7 +410,7 @@ RUN chown -R agent:agent /home/agent
 # ---------------------------------------------------------------------------
 ENV LANG=en_US.UTF-8
 ENV LC_ALL=en_US.UTF-8
-ENV TERM=xterm-256color
+ENV TERM=xterm-kitty
 ENV COLORTERM=truecolor
 ENV SHELL=/bin/zsh
 ENV PATH="/home/agent/.cargo/bin:${PATH}"
