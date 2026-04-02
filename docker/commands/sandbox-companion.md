@@ -9,7 +9,7 @@ When a tool, CLI, or runtime doesn't work inside the Claude Code sandbox (broken
 ## What you produce
 
 A single self-locking shell script that:
-1. Watches a command file for instructions from Claude
+1. Watches a command queue directory for instructions from Claude
 2. Maps command keywords to hardcoded invocations (no arguments, no eval, no shell expansion)
 3. Sanitizes all input to `[a-z-]` only
 4. Writes output to a result file Claude can read
@@ -35,7 +35,7 @@ set -euo pipefail
 SCRIPT_PATH="$(realpath "$0")"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 AGENT_DIR="$SCRIPT_DIR/.companion_agent"
-COMMAND_FILE="$AGENT_DIR/command"
+QUEUE_DIR="$AGENT_DIR/queue"
 RESULT_FILE="$AGENT_DIR/result"
 STATUS_FILE="$AGENT_DIR/status"
 PID_FILE="$AGENT_DIR/agent.pid"
@@ -143,10 +143,9 @@ esac
 
 lockdown
 
-mkdir -p "$AGENT_DIR"
+mkdir -p "$QUEUE_DIR"
 echo $$ > "$PID_FILE"
 echo "idle" > "$STATUS_FILE"
-: > "$COMMAND_FILE"
 : > "$RESULT_FILE"
 
 echo "[companion] Running in $SCRIPT_DIR"
@@ -154,9 +153,10 @@ echo "[companion] Waiting for commands..."
 echo ""
 
 while true; do
-    if [[ -s "$COMMAND_FILE" ]]; then
-        CMD=$(head -1 "$COMMAND_FILE" | tr -d '[:space:]' | tr -cd 'a-z-')
-        : > "$COMMAND_FILE"
+    NEXT=$(find "$QUEUE_DIR" -name '*.cmd' -type f 2>/dev/null | sort | head -1)
+    if [[ -n "$NEXT" ]]; then
+        CMD=$(head -1 "$NEXT" | tr -d '[:space:]' | tr -cd 'a-z-')
+        rm -f "$NEXT"
 
         if [[ -z "$CMD" ]]; then
             continue
@@ -174,8 +174,9 @@ while true; do
 
         echo "done" > "$STATUS_FILE"
         echo "[companion] Done."
+    else
+        sleep 0.5
     fi
-    sleep 0.5
 done
 ```
 
@@ -200,12 +201,15 @@ Tell the user to:
 
 To invoke a command from the sandbox:
 ```bash
-echo "<command-keyword>" > /path/to/.companion_agent/command
+echo "<command-keyword>" > /path/to/.companion_agent/queue/$(date +%s%N).cmd
 ```
 
-To wait for completion:
+To wait for the queue to drain and the command to finish:
 ```bash
-while [ "$(cat /path/to/.companion_agent/status)" = "running" ]; do sleep 3; done
+while [ -n "$(ls /path/to/.companion_agent/queue/*.cmd 2>/dev/null)" ] || \
+      [ "$(cat /path/to/.companion_agent/status)" = "running" ]; do
+    sleep 1
+done
 cat /path/to/.companion_agent/result
 ```
 
@@ -215,6 +219,7 @@ cat /path/to/.companion_agent/result
 - Fixed enum of commands — no arbitrary execution
 - No eval, no argument passing, no shell expansion
 - Script owned by root, mode 444, immutable flag (schg/+i) — Claude cannot modify or overwrite it
+- Spool queue directory — each command is a separate timestamped file, preventing rapid-fire overwrites
 - Self-locking on first run — user doesn't need to remember chmod/chown/chflags steps
 - Unlock command (`bash script.sh unlock`) removes immutable flag and restores write permissions
 
@@ -225,3 +230,4 @@ cat /path/to/.companion_agent/result
 - Do NOT use `eval` anywhere
 - Do NOT expose filesystem utilities (ls, cat, rm) — Claude can do those locally
 - Do NOT skip the lockdown step
+- Do NOT use the old single-file `echo > command` pattern — commands will be lost under rapid-fire usage
