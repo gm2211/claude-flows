@@ -1,0 +1,35 @@
+#!/usr/bin/env sh
+
+# BSP = automatic tiling (windows split space as they open)
+yabai -m config layout bsp
+
+# New windows become the right/bottom child
+yabai -m config window_placement second_child
+
+# Auto-equalize splits when windows open/close
+yabai -m config auto_balance on
+
+# No gaps / padding
+yabai -m config top_padding     0
+yabai -m config bottom_padding  0
+yabai -m config left_padding    0
+yabai -m config right_padding   0
+yabai -m config window_gap      0
+
+# Mouse: fn + left-drag to move, fn + right-drag to resize
+yabai -m config mouse_modifier fn
+yabai -m config mouse_action1  move
+yabai -m config mouse_action2  resize
+
+# Dropping a dragged window onto another swaps them
+yabai -m config mouse_drop_action swap
+
+# Focus follows mouse (like Amethyst)
+yabai -m config focus_follows_mouse autoraise
+
+# Float system apps that don't tile well
+yabai -m rule --add app="^System Settings$" manage=off
+yabai -m rule --add app="^Calculator$" manage=off
+yabai -m rule --add app="^Karabiner" manage=off
+yabai -m rule --add app="^Archive Utility$" manage=off
+yabai -m rule --add app="^Finder$" title="^(Copy|Move|Delete|Connecting)" manage=off
