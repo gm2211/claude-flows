@@ -2711,3 +2711,91 @@ sb() {
   printf '%s' "$result" | pbcopy
   printf '%s\n' "$result"
 }
+
+# kc — simplified keychain wrapper (account/service pairs)
+#
+#   kc acct svc           GET password
+#   kc acct svc value     SET password (upsert)
+#   kc -d acct svc        DELETE
+#   kc -l [pattern]       LIST all generic-password entries
+#   kc                    INTERACTIVE — prompt account, service, get
+kc() {
+  local _T='\033[1;33m[kc]\033[0m'
+  local _E='\033[1;31m[kc]\033[0m'
+  local _OK='\033[1;32m[kc]\033[0m'
+
+  case "$1" in
+    -d)
+      [[ -z "$2" || -z "$3" ]] && { printf "${_E} Usage: kc -d <account> <service>\n" >&2; return 1; }
+      security delete-generic-password -a "$2" -s "$3" 2>/dev/null \
+        && printf "${_OK} Deleted: %s %s\n" "$2" "$3" \
+        || { printf "${_E} Not found: %s %s\n" "$2" "$3" >&2; return 1; }
+      ;;
+    -l)
+      local pattern="$2"
+      local entries
+      entries=$(security dump-keychain 2>/dev/null \
+        | awk '
+            /class: "genp"/ { acct=""; svc="" }
+            /"acct"/ { a=$0; gsub(/.*<blob>="/, "", a); gsub(/".*/, "", a); acct=a }
+            /"svce"/ { s=$0; gsub(/.*<blob>="/, "", s); gsub(/".*/, "", s); svc=s }
+            acct && svc { print acct "\t" svc; acct=""; svc="" }
+          ' | sort -u)
+      [[ -n "$pattern" ]] && entries=$(printf '%s\n' "$entries" | grep -i "$pattern")
+      if [[ -z "$entries" ]]; then
+        printf "${_T} No entries found${pattern:+ matching '$pattern'}.\n"
+      else
+        printf "${_T} account\tservice\n"
+        printf '%s\n' "$entries"
+      fi
+      ;;
+    "")
+      local acct svc action value
+      printf "${_T} Account: "; read -r acct
+      [[ -z "$acct" ]] && return 1
+      printf "${_T} Service: "; read -r svc
+      [[ -z "$svc" ]] && return 1
+      printf "${_T} [g]et  [s]et  [d]elete: "; read -rsk1 action; printf '\n'
+      case "$action" in
+        g|G)
+          local val
+          val=$(security find-generic-password -a "$acct" -s "$svc" -w 2>/dev/null) || {
+            printf "${_E} Not found: %s %s\n" "$acct" "$svc" >&2; return 1
+          }
+          printf '%s\n' "$val"
+          ;;
+        s|S)
+          printf "${_T} Value (hidden): "; read -rs value; printf '\n'
+          [[ -z "$value" ]] && { printf "${_E} Empty value — aborted.\n" >&2; return 1; }
+          security add-generic-password -a "$acct" -s "$svc" -U -w "$value" 2>/dev/null \
+            && printf "${_OK} Stored: %s %s\n" "$acct" "$svc" \
+            || { printf "${_E} Failed to store: %s %s\n" "$acct" "$svc" >&2; return 1; }
+          ;;
+        d|D)
+          security delete-generic-password -a "$acct" -s "$svc" 2>/dev/null \
+            && printf "${_OK} Deleted: %s %s\n" "$acct" "$svc" \
+            || { printf "${_E} Not found: %s %s\n" "$acct" "$svc" >&2; return 1; }
+          ;;
+        *) printf "${_E} Unknown action.\n" >&2; return 1 ;;
+      esac
+      ;;
+    *)
+      if [[ $# -eq 2 ]]; then
+        # GET
+        local val
+        val=$(security find-generic-password -a "$1" -s "$2" -w 2>/dev/null) || {
+          printf "${_E} Not found: %s %s\n" "$1" "$2" >&2; return 1
+        }
+        printf '%s\n' "$val"
+      elif [[ $# -eq 3 ]]; then
+        # SET
+        security add-generic-password -a "$1" -s "$2" -U -w "$3" 2>/dev/null \
+          && printf "${_OK} Stored: %s %s\n" "$1" "$2" \
+          || { printf "${_E} Failed to store: %s %s\n" "$1" "$2" >&2; return 1; }
+      else
+        printf "${_E} Usage: kc [account service [value]] | kc -d account service | kc -l [pattern]\n" >&2
+        return 1
+      fi
+      ;;
+  esac
+}

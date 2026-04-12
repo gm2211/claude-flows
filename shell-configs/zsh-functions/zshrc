@@ -56,6 +56,7 @@ export DIGITALOCEAN_API_TOKEN=$(doctl auth token 2>/dev/null)
 export RENDER_API_KEY=$(security find-generic-password -a render -s render-api-key -w 2>/dev/null)
 export RENDER_API_KEY_HUDSON=$(security find-generic-password -a render -s render-api-key-hudson -w 2>/dev/null)
 export GROQ_API_KEY=$(security find-generic-password -a groq -s renzo-api-key -w 2>/dev/null)
+export ANTHROPIC_API_KEY=$(security find-generic-password -a claude -s api-key -w 2>/dev/null)
 
 # ---------------------------------------------------------------------------
 #  Completions
@@ -545,3 +546,4 @@ if [[ -z "$ZELLIJ" ]]; then
         zellij -l welcome
     fi
 fi
+eval "$(fnm env --use-on-cd)"

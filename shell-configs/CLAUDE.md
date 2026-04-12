@@ -8,7 +8,14 @@ Terminal setup: kitty + zellij with Catppuccin Mocha theme, Fira Code font, and 
 
 ```bash
 brew install kitty zellij lazygit
-brew install --cask font-symbols-only-nerd-font font-meslo-lg-nerd-font
+brew install neovim fzf atuin autojump pngpaste jq fnm colorls
+brew install --cask font-symbols-only-nerd-font font-meslo-lg-nerd-font font-fira-code
+```
+
+Oh My Zsh must be installed before symlinking the theme:
+
+```bash
+sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
 ```
 
 zjstatus (Zellij status bar plugin) is auto-downloaded as a WASM plugin from the layout config on first launch — no manual install needed.
@@ -16,14 +23,17 @@ zjstatus (Zellij status bar plugin) is auto-downloaded as a WASM plugin from the
 - **kitty** -- terminal emulator
 - **zellij** -- terminal multiplexer (replaces tmux)
 - **lazygit** -- TUI git client (used by lazygit.nvim)
+- **neovim** -- editor (aliased as `vim` and `nv` in zshrc)
+- **fzf** -- fuzzy finder (used by `v()` function and fzf.zsh)
+- **atuin** -- shell history (initialized in zshrc)
+- **autojump** -- directory jumper (oh-my-zsh plugin)
+- **pngpaste** -- clipboard image saver (used by `ss` function)
+- **jq** -- JSON processor (used by claude-status-line)
+- **fnm** -- fast Node version manager (initialized in zshrc)
+- **colorls** -- colorized `ls` (aliased as `l` in zshrc; install the gem: `gem install colorls`)
 - **font-symbols-only-nerd-font** -- Nerd Font symbols used by kitty's `symbol_map` for icons in nvim, lualine, neo-tree, etc.
 - **font-meslo-lg-nerd-font** -- Meslo LG Nerd Font (patched monospace font with glyphs)
-
-If you don't already have Fira Code installed:
-
-```bash
-brew install --cask font-fira-code
-```
+- **font-fira-code** -- Fira Code monospace font
 
 ## Config file locations
 
@@ -34,13 +44,20 @@ brew install --cask font-fira-code
 | `zellij/layouts/default.kdl` | `~/.config/zellij/layouts/default.kdl` |
 | `nvim/` | `~/.config/nvim/` |
 | `claude-status-line/statusline.sh` | `~/.config/claude-status-line/statusline.sh` |
+| `oh-my-zsh/custom/themes/minimal-git.zsh-theme` | `~/.oh-my-zsh/custom/themes/minimal-git.zsh-theme` |
+| `zsh-functions/functions.zsh` | `~/.config/zsh/functions.zsh` |
+| `zsh-functions/zshrc` | `~/.zshrc` |
 
 ## Quick install
 
 ```bash
 # Install dependencies
-brew install kitty zellij lazygit
+brew install kitty zellij lazygit neovim fzf atuin autojump pngpaste jq fnm colorls
 brew install --cask font-symbols-only-nerd-font font-meslo-lg-nerd-font font-fira-code
+gem install colorls
+
+# Install Oh My Zsh (skip if already installed)
+[ ! -d ~/.oh-my-zsh ] && sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
 
 # Create config directories
 mkdir -p ~/.config/kitty ~/.config/zellij/layouts ~/.config/zellij/plugins ~/.config/nvim ~/.config/claude-status-line
@@ -64,6 +81,14 @@ done
 # Claude Code status line
 cp "$REPO_DIR/claude-status-line/statusline.sh" ~/.config/claude-status-line/statusline.sh
 chmod +x ~/.config/claude-status-line/statusline.sh
+
+# Oh My Zsh custom theme
+ln -sf "$REPO_DIR/oh-my-zsh/custom/themes/minimal-git.zsh-theme" ~/.oh-my-zsh/custom/themes/minimal-git.zsh-theme
+
+# ZSH functions & zshrc
+mkdir -p ~/.config/zsh
+ln -sf "$REPO_DIR/zsh-functions/functions.zsh" ~/.config/zsh/functions.zsh
+ln -sf "$REPO_DIR/zsh-functions/zshrc" ~/.zshrc
 
 # Reload kitty config (if kitty is already running)
 kill -SIGUSR1 $(pgrep kitty) 2>/dev/null
