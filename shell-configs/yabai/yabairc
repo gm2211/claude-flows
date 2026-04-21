@@ -24,8 +24,12 @@ yabai -m config mouse_action2  resize
 # Dropping a dragged window onto another swaps them
 yabai -m config mouse_drop_action swap
 
-# Focus follows mouse (like Amethyst)
-yabai -m config focus_follows_mouse autoraise
+# Focus on click only (no hover-focus)
+yabai -m config focus_follows_mouse off
+
+# Force-manage Skim (open panel/sheet can make yabai skip tiling)
+yabai -m rule --add app="^Skim$" manage=on
+yabai -m rule --add app="^Skim$" title="^(Open|Preferences|Notes)" manage=off
 
 # Float system apps that don't tile well
 yabai -m rule --add app="^System Settings$" manage=off
