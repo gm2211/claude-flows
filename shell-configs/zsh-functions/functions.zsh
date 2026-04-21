@@ -1,7 +1,19 @@
 # Portable ZSH functions
 # Sourced from claude-plugins/shell-configs/zsh-functions/
 
-_CLAUDE_SCREENSHOTS_DIR="/tmp/claude-screenshots"
+_CLAUDE_SCREENSHOTS_DIR="/private/tmp/claude-screenshots"
+
+# Auto-install a missing brew dependency. Returns 0 on success, 1 on failure.
+_ensure_brew_dep() {
+  local _cmd="$1" _pkg="${2:-$1}"
+  command -v "$_cmd" &>/dev/null && return 0
+  if ! command -v brew &>/dev/null; then
+    printf '\033[1;31m%s not found and brew is not installed.\033[0m\n' "$_cmd"
+    return 1
+  fi
+  printf '\033[1;34m[auto]\033[0m Installing %s...\n' "$_pkg"
+  brew install "$_pkg" || { printf '\033[1;31m[auto]\033[0m Failed to install %s.\n' "$_pkg"; return 1; }
+}
 
 alias nv='nvim'
 # sp — wrapper for ~/projects/specify CLI
@@ -1247,7 +1259,7 @@ clauded() {
     fi
 
     if $_mount; then
-      if command -v fzf >/dev/null 2>&1; then
+      if _ensure_brew_dep fzf; then
         printf '\033[90m  Tab=toggle  Enter=confirm  Esc=skip\033[0m\n'
         local _selected
         local _search_roots=()
@@ -1293,8 +1305,6 @@ clauded() {
             printf '\033[1;34m[clauded]\033[0m  + %s (ro)\n' "$_dir"
           done <<< "$_selected"
         fi
-      else
-        printf '\033[1;33m[clauded]\033[0m fzf not found — install with: brew install fzf\n'
       fi
     fi
   }
@@ -1870,7 +1880,7 @@ codexd() {
     fi
 
     if $_mount; then
-      if command -v fzf >/dev/null 2>&1; then
+      if _ensure_brew_dep fzf; then
         printf '\033[90m  Tab=toggle  Enter=confirm  Esc=skip\033[0m\n'
         local _selected
         local _search_roots=()
@@ -1916,8 +1926,6 @@ codexd() {
             printf '\033[1;34m[codexd]\033[0m  + %s (ro)\n' "$_dir"
           done <<< "$_selected"
         fi
-      else
-        printf '\033[1;33m[codexd]\033[0m fzf not found — install with: brew install fzf\n'
       fi
     fi
   }
@@ -2518,10 +2526,7 @@ bdt() { bdtui "$@"; }
 #   port <number>  → show processes on that port, pick one to kill
 #   port kill <n>  → kill all processes on port <n> immediately
 port() {
-  if ! command -v fzf &>/dev/null; then
-    printf '\033[1;31m[port]\033[0m fzf is required: brew install fzf\n'
-    return 1
-  fi
+  _ensure_brew_dep fzf || return 1
 
   local subcmd="$1"
   local port_num="$2"
@@ -2621,10 +2626,7 @@ port() {
 #   filelock <file>       → show processes holding the file, pick one to kill
 #   filelock kill <file>  → kill all processes holding the file immediately
 filelock() {
-  if ! command -v fzf &>/dev/null; then
-    printf '\033[1;31m[filelock]\033[0m fzf is required: brew install fzf\n'
-    return 1
-  fi
+  _ensure_brew_dep fzf || return 1
 
   local subcmd="$1"
   local target="$2"

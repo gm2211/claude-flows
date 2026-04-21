@@ -65,8 +65,8 @@ fpath=(~/.zsh/completions $fpath)
 fpath=($HOME/.docker/completions $fpath)
 autoload -Uz compinit && compinit
 
-source <(kubectl completion zsh)
-source <(entire completion zsh)
+command -v kubectl &>/dev/null && source <(kubectl completion zsh)
+command -v entire &>/dev/null && source <(entire completion zsh)
 
 # Google Cloud SDK
 if [ -f '/opt/google-cloud-sdk/completion.zsh.inc' ]; then
@@ -523,7 +523,7 @@ function kDel() {
 # ---------------------------------------------------------------------------
 #  Integrations (colorls, SDKMAN, iTerm2, fzf, atuin)
 # ---------------------------------------------------------------------------
-source $(dirname $(gem which colorls 2>/dev/null))/tab_complete.sh
+_colorls_path=$(gem which colorls 2>/dev/null) && source "$(dirname "$_colorls_path")/tab_complete.sh" 2>/dev/null; unset _colorls_path
 
 # SDKMAN — must be near the end
 export SDKMAN_DIR="$HOME/.sdkman"
@@ -531,7 +531,7 @@ export SDKMAN_DIR="$HOME/.sdkman"
 
 test -e "${HOME}/.iterm2_shell_integration.zsh" && source "${HOME}/.iterm2_shell_integration.zsh"
 [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
-eval "$(atuin init zsh --disable-up-arrow)"
+command -v atuin &>/dev/null && eval "$(atuin init zsh --disable-up-arrow)"
 
 # ---------------------------------------------------------------------------
 #  Claude-plugins: shell functions (worktrees, ss, deploy-watch, etc.)
@@ -546,4 +546,4 @@ if [[ -z "$ZELLIJ" ]]; then
         zellij -l welcome
     fi
 fi
-eval "$(fnm env --use-on-cd)"
+command -v fnm &>/dev/null && eval "$(fnm env --use-on-cd)"
