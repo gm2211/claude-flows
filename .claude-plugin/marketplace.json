@@ -4,7 +4,15 @@
     "name": "gm2211"
   },
   "metadata": {
-    "description": "Claude Code plugins by gm2211"
+    "description": "Claude Code plugins by gm2211",
+    "version": "0.1.0"
   },
-  "plugins": []
+  "plugins": [
+    {
+      "name": "pretty-diagrams",
+      "source": "./plugins/pretty-diagrams",
+      "description": "Hand-drawn diagrams with local Excalidraw and MCP",
+      "version": "0.1.0"
+    }
+  ]
 }

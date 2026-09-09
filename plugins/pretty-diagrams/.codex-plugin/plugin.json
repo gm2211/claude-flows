@@ -1,0 +1,24 @@
+{
+  "name": "pretty-diagrams",
+  "version": "0.1.0",
+  "description": "Hand-drawn diagrams with a local Excalidraw editor and MCP server",
+  "author": {
+    "name": "gm2211"
+  },
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "Pretty Diagrams",
+    "shortDescription": "Hand-drawn Excalidraw diagrams, locally",
+    "category": "Productivity",
+    "longDescription": "Create clear hand-drawn diagrams with an editable local Excalidraw canvas, MCP checkpoints, and native exports.",
+    "developerName": "gm2211",
+    "defaultPrompt": [
+      "Draw a clear hand-drawn diagram of this architecture."
+    ],
+    "capabilities": [
+      "Interactive",
+      "Write"
+    ]
+  }
+}
